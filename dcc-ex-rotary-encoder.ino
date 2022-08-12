@@ -49,7 +49,7 @@ Rotary rotary = Rotary(ROTARY_DT, ROTARY_CLK);
 Instantiate our rotary encoder button.
 Rotary encoder button wired as defined in config.h.
 */
-Switch encoderButton(ROTARY_BTN, INPUT_PULLUP);
+Switch encoderButton(ROTARY_BTN, INPUT_PULLUP, POLARITY, DEBOUNCE, LONG_PRESS);
 
 /*
 Global variable for the counter that will be incremented or
