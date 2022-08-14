@@ -25,8 +25,7 @@
 //  OLED.
 // 
 #define CS_PIN  7
-// #define RST_PIN 84
-
+// #define RST_PIN 8
 #define DC_PIN  9
 
 
