@@ -2,6 +2,8 @@
 
 *** This code is very much in Alpha testing, documentation is almost non-existant, and much testing is needed ***
 
+*** This README is being retained for historical purposes, however the best documentation is in my [GitHub Project pages](https://petegsx-projects.github.io/rotary-encoder/index.html)***
+
 This software has been written to enable an Arduino with a rotary encoder connected to it to be integrated with a DCC-EX CommandStation.
 
 The primary purpose is to select a position for a turntable via EX-RAIL automation, however it could be used for other purposes.
