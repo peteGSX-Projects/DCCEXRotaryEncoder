@@ -27,6 +27,8 @@ Push button sets orange flashing to indicate turntable is moving
 When response from CS received move has finished, stop flashing and set green
 When rotating encoder, alignment with a position highlights it somehow
 Need to devise a formula to use for rotating the turntable in line with the encoder
+Feedback from EX-CS should probably just be SET(vpin) so no extra commands are needed,
+just need to update IO_RotaryEncoder.h to accept and pass that on.
 */
 
 #include <Arduino.h>
