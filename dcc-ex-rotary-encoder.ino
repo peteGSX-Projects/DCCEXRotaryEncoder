@@ -14,6 +14,21 @@
  *  See <https://www.gnu.org/licenses/>.
 */
 
+/*
+GC9A01 round 240x240 LCD display idea:
+
+Outer circle representing turntable surrounds with each position marked.
+Internal line representing turntable with home end marked.
+config.h or similar used to define the various positions using angles:
+- Home angle specified
+- Each position in degrees from home
+Rotating encoder rotates turntable, blue colour to indicate desire to move
+Push button sets orange flashing to indicate turntable is moving
+When response from CS received move has finished, stop flashing and set green
+When rotating encoder, alignment with a position highlights it somehow
+Need to devise a formula to use for rotating the turntable in line with the encoder
+*/
+
 #include <Arduino.h>
 
 // If we haven't got a custom config.h, use the example.
