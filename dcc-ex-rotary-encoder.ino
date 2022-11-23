@@ -31,9 +31,23 @@ Feedback from EX-CS should probably just be SET(vpin) so no extra commands are n
 just need to update IO_RotaryEncoder.h to accept and pass that on.
 */
 
+/*
+Include Arduino platform library.
+*/
 #include <Arduino.h>
 
-// If we haven't got a custom config.h, use the example.
+/*
+Create a struct to define turntable positions (defined in positions.h).
+*/
+typedef struct {
+  uint16_t angle;
+  uint8_t positionId;
+  char description[11];
+} positionDefinition;
+
+/*
+If we haven't got a custom config.h, use the example.
+*/
 #if __has_include ( "config.h")
   #include "config.h"
 #else
@@ -41,13 +55,52 @@ just need to update IO_RotaryEncoder.h to accept and pass that on.
   #include "config.example.h"
 #endif
 
+/*
+If GC9A01 defined, include the necessary library and files.
+*/
+#ifdef USE_GC9A01
+#ifdef USE_OLED
+// If we've defined both display options, we need to bail out compiling.
+#error USE_GC9A01 and USE_OLED defined, must only specify one display option
+#endif
+// If we haven't got a custom positions.h, use the example.
+#if __has_include ( "positions.h")
+  #include "positions.h"
+#else
+  #warning positions.h not found. Using defaults from positions.example.h
+  #include "positions.example.h"
+#endif
+
+// If we haven't got a custom colours.h, use the example.
+#if __has_include ( "colours.h")
+  #include "colours.h"
+#else
+  #warning colours.h not found. Using defaults from colours.example.h
+  #include "colours.example.h"
+#endif
+#include <Arduino_GFX_Library.h>
+#endif
+
+/*
+If OLED defined, include the required libraries.
+*/
+#ifdef USE_OLED
+#ifdef USE_GC9A01
+// If we've defined both display options, we need to bail out compiling.
+#error USE_GC9A01 and USE_OLED defined, must only specify one display option
+#endif
+#include <SPI.h>
+#include "SSD1306Ascii.h"
+#include "SSD1306AsciiSpi.h"
+#endif
+
+/*
+Include required libraries and files.
+*/
 #include "avdweb_Switch.h"
 #include "Rotary.h"
 #include "Wire.h"
 #include "version.h"
-#include <SPI.h>
-#include "SSD1306Ascii.h"
-#include "SSD1306AsciiSpi.h"
 
 /*
 Global variable to allow rotation of the encoder back to "home"
@@ -81,8 +134,9 @@ and is sent to the CS when requested.
 int8_t position = 0;
 
 /*
-Instantiate our OLED object.
+If using OLED, instantiate our OLED object and create functions.
 */
+#ifdef USE_OLED
 SSD1306AsciiSpi oled;
 
 /*
@@ -121,50 +175,58 @@ void displayHomeReset() {
   oled.println(F("Rotate encoder to home"));
   oled.println(F("Press button to confirm"));
 }
+// End of OLED functions
+#endif
 
 void setup() {
   Serial.begin(115200);
-  oled.begin(&SH1106_128x64, CS_PIN, DC_PIN);
-  oled.setFont(Callibri11);
-  oled.clear();
   Serial.print(F("DCC-EX Rotary Encoder "));
   Serial.println(VERSION);
   Serial.print(F("Available at I2C address 0x"));
   Serial.println(I2C_ADDRESS, HEX);
+#ifdef USE_OLED
+  oled.begin(&SH1106_128x64, OLED_CS, OLED_DC);
+  oled.setFont(Callibri11);
+  oled.clear();
   oled.println(F("DCC-EX Rotary Encoder"));
   oled.print(F("Version: "));
   oled.println(VERSION);
   oled.print(F("I2C Address: 0x"));
   oled.println(I2C_ADDRESS, HEX);
-  Wire.begin(I2C_ADDRESS);
-  Wire.onRequest(requestEvent);
   delay(2000);
   oled.clear();
   displaySelectedPosition(counter);
+#endif
+  Wire.begin(I2C_ADDRESS);
+  Wire.onRequest(requestEvent);
 }
 
 void loop() {
   encoderButton.poll();
-
   if (encoderButton.longPress()) {
     // Disable reading position allow rotation to "home"
     encoderRead = false;
     Serial.println(F("Disabling position counts"));
+#ifdef USE_OLED
     displayHomeReset();
+#endif
   } else if (encoderButton.singleClick() && encoderRead) {
     position = counter;
     Serial.print(F("Sending position "));
     Serial.print(position);
     Serial.println(F(" to CommandStation"));
+#ifdef USE_OLED
     displaySelectedPosition(position);
+#endif
   } else if (encoderButton.singleClick() && !encoderRead) {
     // Once rotated to "home", zero counter and enable again
     counter = 0;
     encoderRead = true;
     Serial.println(F("Enabling position counts"));
+#ifdef USE_OLED
     displaySelectedPosition(position);
+#endif
   }
-
   if (encoderRead) {
     unsigned char result = rotary.process();
     if (result == DIR_CW) {
@@ -179,7 +241,9 @@ void loop() {
 #ifdef DIAG
     Serial.println(counter);
 #endif
+#ifdef USE_OLED
     displayNewPosition(counter);
+#endif
   }
 }
 

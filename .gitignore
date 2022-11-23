@@ -1,2 +1,5 @@
 .pio
 .vscode
+config.h
+positions.h
+colours.h
