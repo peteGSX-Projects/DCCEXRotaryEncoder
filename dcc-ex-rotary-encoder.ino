@@ -103,40 +103,25 @@ Include required libraries and files.
 #include "version.h"
 
 /*
-Global variable to allow rotation of the encoder back to "home"
-without updating the position send to the CS.
+Global variables for the rotary encoder.
 */
-bool encoderRead = true;
+bool encoderRead = true;    // Allows encoder to be rotated without updating position
+int8_t counter = 0;         // Counter to be incremented/decremented by rotation
+int8_t position = 0;        // Position sent to the CommandStation
 
 /*
-Instantiate our rotary encoder object.
-Rotary encoder is wired with the common to ground and the two
-outputs as defined in config.h.
+Instantiate our rotary encoder and switch objects.
 */
 Rotary rotary = Rotary(ROTARY_DT, ROTARY_CLK);
-
-/*
-Instantiate our rotary encoder button.
-Rotary encoder button wired as defined in config.h.
-*/
 Switch encoderButton(ROTARY_BTN, INPUT_PULLUP, POLARITY, DEBOUNCE, LONG_PRESS);
 
 /*
-Global variable for the counter that will be incremented or
-decremented by rotation.
-*/
-int8_t counter = 0;
-
-/*
-Global variable that is set by the encoder button single push
-and is sent to the CS when requested.
-*/
-int8_t position = 0;
-
-/*
-If using OLED, instantiate our OLED object and create functions.
+Global variables, objects, and functions specifically for OLED.
 */
 #ifdef USE_OLED
+/*
+Instantiate the OLED object.
+*/
 SSD1306AsciiSpi oled;
 
 /*
@@ -176,6 +161,26 @@ void displayHomeReset() {
   oled.println(F("Press button to confirm"));
 }
 // End of OLED functions
+#endif
+
+/*
+Global variables, objects, and functions specifically for GC9A01.
+*/
+#ifdef USE_GC9A01
+// Static global variables for display parameters
+static int16_t displayWidth, displayHeight, displayCentre, turntableLength, pitRadius;
+static float turntableDegrees, markDegrees;
+// Global variables to facilitate overwriting last position
+int16_t lastX0, lastY0, lastX1, lastY1, lastHX0, lastHY0, lastHX1, lastHY1;
+uint8_t textX, textY, numChars = 0;
+uint16_t turntableAngle = HOME_ANGLE;   // Start display with turntable at home
+char textChars[11];     // Stores the current position text
+
+// Define radians for angle calculation
+#define ONE_DEGREE_RADIAN 0.01745329
+#define RIGHT_ANGLE_RADIAN 1.57079633
+
+// End of GC9A01 functions
 #endif
 
 void setup() {
