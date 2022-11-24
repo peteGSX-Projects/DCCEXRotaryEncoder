@@ -176,9 +176,134 @@ uint8_t textX, textY, numChars = 0;
 uint16_t turntableAngle = HOME_ANGLE;   // Start display with turntable at home
 char textChars[11];     // Stores the current position text
 
+// Instantiate DataBus and GFX objects.
+Arduino_DataBus *bus = new Arduino_HWSPI(GC9A01_DC, GC9A01_CS);
+Arduino_GFX *gfx = new Arduino_GC9A01(bus, GC9A01_RST, GC9A01_ROTATION, GC9A01_IPS);
+
 // Define radians for angle calculation
 #define ONE_DEGREE_RADIAN 0.01745329
 #define RIGHT_ANGLE_RADIAN 1.57079633
+
+void drawPositionMarks() {
+  uint8_t homeMarkLength = 12;
+  uint8_t positionMarkLength = 10;
+  uint16_t markColour;
+  float x, y;
+  int16_t x0, x1, y0, y1, innerRadius, outerRadius;
+#ifndef HOME_ANGLE
+#define HOME_ANGLE 0
+#endif
+  for (uint16_t i = 0; i < 360; i++) {
+    bool drawLine = false;
+    if (i == HOME_ANGLE) {
+      markColour = HOME_COLOUR;
+      innerRadius = displayCentre - PIT_OFFSET + 1;
+      outerRadius = displayCentre + homeMarkLength - PIT_OFFSET + 1;
+      drawLine = true;
+    } else {
+      for (uint8_t j = 0; j < NUMBER_OF_POSITIONS; j++) {
+        if (i == turntablePositions[j].angle) {
+          markColour = POSITION_COLOUR;
+          innerRadius = displayCentre - PIT_OFFSET + 1;
+          outerRadius = displayCentre + positionMarkLength - PIT_OFFSET + 1;
+          drawLine = true;
+        }
+      }
+    }
+    markDegrees = (ONE_DEGREE_RADIAN * i) - RIGHT_ANGLE_RADIAN;
+    x = cos(markDegrees);
+    y = sin(markDegrees);
+    x0 = x * outerRadius + displayCentre;
+    y0 = y * outerRadius + displayCentre;
+    x1 = x * innerRadius + displayCentre;
+    y1 = y * innerRadius + displayCentre;
+    if (drawLine) {
+      gfx->drawLine(x0, y0, x1, y1, markColour);
+    }
+  }
+}
+
+void drawTurntable(uint16_t angle) {
+  float x, y;
+  int16_t x0, x1, y0, y1, homeEnd, otherEnd, indicatorInner, indicatorOuter, hx0, hy0, hx1, hy1;
+  uint16_t homeEndColour = TURNTABLE_HOME_COLOUR;
+  bool updateText = false;
+  for (uint8_t i = 0; i < NUMBER_OF_POSITIONS; i++) {
+    if (angle == turntablePositions[i].angle || angle == HOME_ANGLE) {
+      homeEndColour = HOME_HIGHLIGHT_COLOUR;
+      updateText = true;
+    }
+  }
+  if (updateText) {
+    drawPositionText(angle, true);
+    drawPositionText(angle, false);
+  } else {
+    drawPositionText(angle, true);
+  }
+  turntableDegrees = (ONE_DEGREE_RADIAN * angle) - RIGHT_ANGLE_RADIAN;
+  homeEnd = (turntableLength / 2) - 10;
+  otherEnd = - (turntableLength / 2);
+  indicatorInner = homeEnd;
+  indicatorOuter = indicatorInner + 10;
+  x = cos(turntableDegrees);
+  y = sin(turntableDegrees);
+  x0 = x * homeEnd + displayCentre;
+  y0 = y * homeEnd + displayCentre;
+  x1 = x * otherEnd + displayCentre;
+  y1 = y * otherEnd + displayCentre;
+  hx0 = x * indicatorInner + displayCentre;
+  hy0 = y * indicatorInner + displayCentre;
+  hx1 = x * indicatorOuter + displayCentre;
+  hy1 = y * indicatorOuter + displayCentre;
+  gfx->drawLine(lastX0, lastY0, lastX1, lastY1, BACKGROUND_COLOUR);
+  gfx->drawLine(lastHX0, lastHY0, lastHX1, lastHY1, BACKGROUND_COLOUR);
+  gfx->drawLine(x0, y0, x1, y1, TURNTABLE_COLOUR);
+  gfx->drawLine(hx0, hy0, hx1, hy1, homeEndColour);
+  lastX0 = x0;
+  lastY0 = y0;
+  lastX1 = x1;
+  lastY1 = y1;
+  lastHX0 = hx0;
+  lastHY0 = hy0;
+  lastHX1 = hx1;
+  lastHY1 = hy1;
+}
+
+void drawPositionText(uint16_t angle, bool clear) {
+  uint16_t fontColour;
+  gfx->setTextSize(2);
+  gfx->setFont();
+  if (clear) {
+    fontColour = BACKGROUND_COLOUR;
+  } else {
+    fontColour = POSITION_TEXT_COLOUR;
+    numChars = 0;
+    for (uint8_t i = 0; i < NUMBER_OF_POSITIONS; i++) {
+      if (angle == turntablePositions[i].angle) {
+        for (uint8_t j = 0; j < 10; j++) {
+          textChars[j] = turntablePositions[i].description[j];
+          if (turntablePositions[i].description[j] != '\0') {
+            numChars++;
+          } else {
+            break;
+          }
+        }
+      } else if (angle == HOME_ANGLE) {
+        char home[5] = "Home";
+        for (uint8_t k = 0; k < 4; k++) {
+          textChars[k] = home[k];
+        }
+        textChars[4] = '\0';
+        numChars = 4;
+      }
+    }
+    textX = displayCentre - (numChars / 2 * 10) - 1;
+    textY = displayCentre + 5;
+  }
+  gfx->setTextColor(fontColour);
+  gfx->setCursor(textX, textY);
+  gfx->print(textChars);
+}
 
 // End of GC9A01 functions
 #endif
