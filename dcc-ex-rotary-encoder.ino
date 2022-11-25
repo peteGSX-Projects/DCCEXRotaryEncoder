@@ -351,6 +351,15 @@ void setup() {
   {
     displayCentre = displayHeight / 2;
   }
+  gfx->setTextColor(POSITION_TEXT_COLOUR);
+  gfx->setCursor(60, 60);
+  gfx->println(F("DCC-EX Rotary Encoder"));
+  gfx->print(F("Version: "));
+  gfx->println(VERSION);
+  gfx->print(F("I2C Address: 0x"));
+  gfx->println(I2C_ADDRESS, HEX);
+  delay(2000);
+  gfx->fillScreen(BACKGROUND_COLOUR);
   pitRadius = displayCentre - PIT_OFFSET;
   turntableLength = (pitRadius - 5) * 2;
   gfx->drawCircle(displayCentre, displayCentre, pitRadius, PIT_COLOUR);
@@ -371,13 +380,13 @@ void loop() {
     displayHomeReset();
 #endif
   } else if (encoderButton.singleClick() && encoderRead) {
+#ifdef USE_OLED
+    displaySelectedPosition(position);
     position = counter;
+#endif
     Serial.print(F("Sending position "));
     Serial.print(position);
     Serial.println(F(" to CommandStation"));
-#ifdef USE_OLED
-    displaySelectedPosition(position);
-#endif
   } else if (encoderButton.singleClick() && !encoderRead) {
     // Once rotated to "home", zero counter and enable again
     counter = 0;
@@ -389,19 +398,42 @@ void loop() {
   }
   if (encoderRead) {
     unsigned char result = rotary.process();
+    bool moveTurntable = false;
     if (result == DIR_CW) {
+#ifdef USE_GC9A01
+      if (turntableAngle < 360) {
+        turntableAngle++;
+      } else {
+        turntableAngle = 0;
+      }
+      moveTurntable = true;
+#else
       if (counter < 127) {
         counter++;
       }
+#endif
     } else if (result == DIR_CCW) {
+#ifdef USE_GC9A01
+      if (turntableAngle > 0) {
+        turntableAngle--;
+      } else {
+        turntableAngle = 359;
+      }
+      moveTurntable = true;
+#else
       if (counter > -127) {
         counter--;
       }
+#endif
     }
 #ifdef DIAG
     Serial.println(counter);
 #endif
-#ifdef USE_OLED
+#ifdef USE_GC9A01
+    if (moveTurntable) {
+      drawTurntable(turntableAngle);
+    }
+#else
     displayNewPosition(counter);
 #endif
   }
