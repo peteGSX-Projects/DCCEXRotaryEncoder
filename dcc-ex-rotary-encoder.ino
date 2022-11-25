@@ -48,7 +48,7 @@ typedef struct {
 /*
 If we haven't got a custom config.h, use the example.
 */
-#if __has_include ( "config.h")
+#if __has_include ("config.h")
   #include "config.h"
 #else
   #warning config.h not found. Using defaults from config.example.h
@@ -73,7 +73,7 @@ If GC9A01 defined, include the necessary library and files.
 #error USE_GC9A01 and USE_OLED defined, must only specify one display option
 #endif
 // If we haven't got a custom positions.h, use the example.
-#if __has_include ( "positions.h")
+#if __has_include ("positions.h")
   #include "positions.h"
 #else
   #warning positions.h not found. Using defaults from positions.example.h
@@ -81,13 +81,13 @@ If GC9A01 defined, include the necessary library and files.
 #endif
 
 // If we haven't got a custom colours.h, use the example.
-#if __has_include ( "colours.h")
+#if __has_include ("colours.h")
   #include "colours.h"
 #else
   #warning colours.h not found. Using defaults from colours.example.h
   #include "colours.example.h"
 #endif
-#include <Arduino_GFX_Library.h>
+#include "Arduino_GFX_Library.h"
 #endif
 
 /*
