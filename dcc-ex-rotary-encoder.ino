@@ -56,6 +56,15 @@ If we haven't got a custom config.h, use the example.
 #endif
 
 /*
+Generate comiler error if no display in use.
+*/
+#ifndef USE_OLED
+#ifndef USE_GC9A01
+#error No display defined, specify either OLED or GC9A01
+#endif
+#endif
+
+/*
 If GC9A01 defined, include the necessary library and files.
 */
 #ifdef USE_GC9A01
@@ -298,7 +307,7 @@ void drawPositionText(uint16_t angle, bool clear) {
       }
     }
     textX = displayCentre - (numChars / 2 * 10) - 1;
-    textY = displayCentre + 5;
+    textY = displayCentre;
   }
   gfx->setTextColor(fontColour);
   gfx->setCursor(textX, textY);
@@ -326,6 +335,27 @@ void setup() {
   delay(2000);
   oled.clear();
   displaySelectedPosition(counter);
+#endif
+#ifdef USE_GC9A01
+  gfx->begin();
+  gfx->fillScreen(BACKGROUND_COLOUR);
+  pinMode(GC9A01_BL, OUTPUT);
+  digitalWrite(GC9A01_BL, HIGH);
+  displayWidth = gfx->width();
+  displayHeight = gfx->height();
+  if (displayWidth < displayHeight)
+  {
+    displayCentre = displayWidth / 2;
+  }
+  else
+  {
+    displayCentre = displayHeight / 2;
+  }
+  pitRadius = displayCentre - PIT_OFFSET;
+  turntableLength = (pitRadius - 5) * 2;
+  gfx->drawCircle(displayCentre, displayCentre, pitRadius, PIT_COLOUR);
+  drawPositionMarks();
+  drawTurntable(turntableAngle);
 #endif
   Wire.begin(I2C_ADDRESS);
   Wire.onRequest(requestEvent);
