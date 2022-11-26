@@ -193,6 +193,9 @@ Arduino_GFX *gfx = new Arduino_GC9A01(bus, GC9A01_RST, GC9A01_ROTATION, GC9A01_I
 #define ONE_DEGREE_RADIAN 0.01745329
 #define RIGHT_ANGLE_RADIAN 1.57079633
 
+/*
+Function to display the defined position marks around the pit circle.
+*/
 void drawPositionMarks() {
   uint8_t homeMarkLength = 12;
   uint8_t positionMarkLength = 10;
@@ -232,6 +235,51 @@ void drawPositionMarks() {
   }
 }
 
+/*
+Function to display the text for the specified position.
+If moving away from a defined position, set the "clear" flag to set to background colour.
+*/
+void drawPositionText(uint16_t angle, bool clear) {
+  uint16_t fontColour;
+  gfx->setTextSize(2);
+  gfx->setFont();
+  if (clear) {
+    fontColour = BACKGROUND_COLOUR;
+  } else {
+    fontColour = POSITION_TEXT_COLOUR;
+    numChars = 0;
+    for (uint8_t i = 0; i < NUMBER_OF_POSITIONS; i++) {
+      if (angle == turntablePositions[i].angle) {
+        for (uint8_t j = 0; j < 10; j++) {
+          textChars[j] = turntablePositions[i].description[j];
+          if (turntablePositions[i].description[j] != '\0') {
+            numChars++;
+          } else {
+            break;
+          }
+        }
+      } else if (angle == HOME_ANGLE) {
+        char home[5] = "Home";
+        for (uint8_t k = 0; k < 4; k++) {
+          textChars[k] = home[k];
+        }
+        textChars[4] = '\0';
+        numChars = 4;
+      }
+    }
+    textX = displayCentre - (numChars / 2 * 10) - 1;
+    textY = displayCentre;
+  }
+  gfx->setTextColor(fontColour);
+  gfx->setCursor(textX, textY);
+  gfx->print(textChars);
+}
+
+/*
+Function to draw the turntable at the specified angle.
+If the turntable aligns with home or a define position, it will highlight the home end and
+display the provided description of the position.
+*/
 void drawTurntable(uint16_t angle) {
   float x, y;
   int16_t x0, x1, y0, y1, homeEnd, otherEnd, indicatorInner, indicatorOuter, hx0, hy0, hx1, hy1;
@@ -241,6 +289,11 @@ void drawTurntable(uint16_t angle) {
     if (angle == turntablePositions[i].angle || angle == HOME_ANGLE) {
       homeEndColour = HOME_HIGHLIGHT_COLOUR;
       updateText = true;
+      if (angle == HOME_ANGLE) {
+        counter = 0;
+      } else {
+        counter = turntablePositions[i].positionId;
+      }
     }
   }
   if (updateText) {
@@ -278,44 +331,15 @@ void drawTurntable(uint16_t angle) {
   lastHY1 = hy1;
 }
 
-void drawPositionText(uint16_t angle, bool clear) {
-  uint16_t fontColour;
-  gfx->setTextSize(2);
-  gfx->setFont();
-  if (clear) {
-    fontColour = BACKGROUND_COLOUR;
-  } else {
-    fontColour = POSITION_TEXT_COLOUR;
-    numChars = 0;
-    for (uint8_t i = 0; i < NUMBER_OF_POSITIONS; i++) {
-      if (angle == turntablePositions[i].angle) {
-        for (uint8_t j = 0; j < 10; j++) {
-          textChars[j] = turntablePositions[i].description[j];
-          if (turntablePositions[i].description[j] != '\0') {
-            numChars++;
-          } else {
-            break;
-          }
-        }
-      } else if (angle == HOME_ANGLE) {
-        char home[5] = "Home";
-        for (uint8_t k = 0; k < 4; k++) {
-          textChars[k] = home[k];
-        }
-        textChars[4] = '\0';
-        numChars = 4;
-      }
-    }
-    textX = displayCentre - (numChars / 2 * 10) - 1;
-    textY = displayCentre;
-  }
-  gfx->setTextColor(fontColour);
-  gfx->setCursor(textX, textY);
-  gfx->print(textChars);
-}
-
 // End of GC9A01 functions
 #endif
+
+/*
+Function to send the current position over I2C when requested.
+*/
+void requestEvent() {
+  Wire.write(position);
+}
 
 void setup() {
   Serial.begin(115200);
@@ -351,13 +375,17 @@ void setup() {
   {
     displayCentre = displayHeight / 2;
   }
+  gfx->setTextSize(1);
+  gfx->setFont();
   gfx->setTextColor(POSITION_TEXT_COLOUR);
-  gfx->setCursor(60, 60);
-  gfx->println(F("DCC-EX Rotary Encoder"));
+  gfx->setCursor(40, 60);
+  gfx->print(F("DCC-EX Rotary Encoder"));
+  gfx->setCursor(40, 80);
   gfx->print(F("Version: "));
-  gfx->println(VERSION);
+  gfx->print(VERSION);
+  gfx->setCursor(40, 100);
   gfx->print(F("I2C Address: 0x"));
-  gfx->println(I2C_ADDRESS, HEX);
+  gfx->print(I2C_ADDRESS, HEX);
   delay(2000);
   gfx->fillScreen(BACKGROUND_COLOUR);
   pitRadius = displayCentre - PIT_OFFSET;
@@ -382,8 +410,8 @@ void loop() {
   } else if (encoderButton.singleClick() && encoderRead) {
 #ifdef USE_OLED
     displaySelectedPosition(position);
-    position = counter;
 #endif
+    position = counter;
     Serial.print(F("Sending position "));
     Serial.print(position);
     Serial.println(F(" to CommandStation"));
@@ -437,8 +465,4 @@ void loop() {
     displayNewPosition(counter);
 #endif
   }
-}
-
-void requestEvent() {
-  Wire.write(position);
 }
