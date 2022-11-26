@@ -58,8 +58,8 @@ If we haven't got a custom config.h, use the example.
 /*
 Generate comiler error if no display in use.
 */
-#ifndef USE_OLED
-#ifndef USE_GC9A01
+#ifndef KNOB_MODE
+#ifndef TURNTABLE_MODE
 #error No display defined, specify either OLED or GC9A01
 #endif
 #endif
@@ -67,10 +67,10 @@ Generate comiler error if no display in use.
 /*
 If GC9A01 defined, include the necessary library and files.
 */
-#ifdef USE_GC9A01
-#ifdef USE_OLED
+#ifdef TURNTABLE_MODE
+#ifdef KNOB_MODE
 // If we've defined both display options, we need to bail out compiling.
-#error USE_GC9A01 and USE_OLED defined, must only specify one display option
+#error TURNTABLE_MODE and KNOB_MODE defined, must only specify one display option
 #endif
 // If we haven't got a custom positions.h, use the example.
 #if __has_include ("positions.h")
@@ -93,10 +93,10 @@ If GC9A01 defined, include the necessary library and files.
 /*
 If OLED defined, include the required libraries.
 */
-#ifdef USE_OLED
-#ifdef USE_GC9A01
+#ifdef KNOB_MODE
+#ifdef TURNTABLE_MODE
 // If we've defined both display options, we need to bail out compiling.
-#error USE_GC9A01 and USE_OLED defined, must only specify one display option
+#error TURNTABLE_MODE and KNOB_MODE defined, must only specify one display option
 #endif
 #include <SPI.h>
 #include "SSD1306Ascii.h"
@@ -127,7 +127,7 @@ Switch encoderButton(ROTARY_BTN, INPUT_PULLUP, POLARITY, DEBOUNCE, LONG_PRESS);
 /*
 Global variables, objects, and functions specifically for OLED.
 */
-#ifdef USE_OLED
+#ifdef KNOB_MODE
 /*
 Instantiate the OLED object.
 */
@@ -175,7 +175,7 @@ void displayHomeReset() {
 /*
 Global variables, objects, and functions specifically for GC9A01.
 */
-#ifdef USE_GC9A01
+#ifdef TURNTABLE_MODE
 // Static global variables for display parameters
 static int16_t displayWidth, displayHeight, displayCentre, turntableLength, pitRadius;
 static float turntableDegrees, markDegrees;
@@ -347,7 +347,7 @@ void setup() {
   Serial.println(VERSION);
   Serial.print(F("Available at I2C address 0x"));
   Serial.println(I2C_ADDRESS, HEX);
-#ifdef USE_OLED
+#ifdef KNOB_MODE
   oled.begin(&SH1106_128x64, OLED_CS, OLED_DC);
   oled.setFont(Callibri11);
   oled.clear();
@@ -360,7 +360,7 @@ void setup() {
   oled.clear();
   displaySelectedPosition(counter);
 #endif
-#ifdef USE_GC9A01
+#ifdef TURNTABLE_MODE
   gfx->begin();
   gfx->fillScreen(BACKGROUND_COLOUR);
   pinMode(GC9A01_BL, OUTPUT);
@@ -404,11 +404,11 @@ void loop() {
     // Disable reading position allow rotation to "home"
     encoderRead = false;
     Serial.println(F("Disabling position counts"));
-#ifdef USE_OLED
+#ifdef KNOB_MODE
     displayHomeReset();
 #endif
   } else if (encoderButton.singleClick() && encoderRead) {
-#ifdef USE_OLED
+#ifdef KNOB_MODE
     displaySelectedPosition(position);
 #endif
     position = counter;
@@ -420,7 +420,7 @@ void loop() {
     counter = 0;
     encoderRead = true;
     Serial.println(F("Enabling position counts"));
-#ifdef USE_OLED
+#ifdef KNOB_MODE
     displaySelectedPosition(position);
 #endif
   }
@@ -428,7 +428,7 @@ void loop() {
     unsigned char result = rotary.process();
     bool moveTurntable = false;
     if (result == DIR_CW) {
-#ifdef USE_GC9A01
+#ifdef TURNTABLE_MODE
       if (turntableAngle < 360) {
         turntableAngle++;
       } else {
@@ -441,7 +441,7 @@ void loop() {
       }
 #endif
     } else if (result == DIR_CCW) {
-#ifdef USE_GC9A01
+#ifdef TURNTABLE_MODE
       if (turntableAngle > 0) {
         turntableAngle--;
       } else {
@@ -457,7 +457,7 @@ void loop() {
 #ifdef DIAG
     Serial.println(counter);
 #endif
-#ifdef USE_GC9A01
+#ifdef TURNTABLE_MODE
     if (moveTurntable) {
       drawTurntable(turntableAngle);
     }

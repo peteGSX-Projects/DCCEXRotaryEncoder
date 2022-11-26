@@ -47,12 +47,12 @@
 #define DIR_CCW 0x20
 
 /////////////////////////////////////////////////////////////////////////////////////
-//  Define the display to use.
-//  USE_OLED - Use a standard SSD1306 (or compatible) SPI attached monochrome OLED
-//  USE_GC9A01 - Use a round GC9A01 SPI attached colour LCD
+//  Define the mode to use.
+//  KNOB_MODE - Set to generic control knob mode with SPI OLED
+//  TURNTABLE_MODE - Set to turntable mode with GC9A01 round LCD
 // 
-// #define USE_OLED
-#define USE_GC9A01
+// #define KNOB_MODE
+#define TURNTABLE_MODE
 
 /////////////////////////////////////////////////////////////////////////////////////
 //  OLED.
