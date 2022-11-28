@@ -12,9 +12,31 @@
 #ifndef POSITIONS_H
 #define POSITIONS_H
 
-#define HOME_ANGLE 0
+/////////////////////////////////////////////////////////////////////////////////////
+//  NOTE: All angles are expressed in degrees from the top of the display, or in other
+//  words 12 o'clock on an analogue clock.
+/////////////////////////////////////////////////////////////////////////////////////
+#define HOME_ANGLE 0            // Define the angle in degrees for the home position mark
+#define NUMBER_OF_POSITIONS 10  // Define the number of positions to be defined
 
-#define NUMBER_OF_POSITIONS 10
+/////////////////////////////////////////////////////////////////////////////////////
+//  You must define the exact number of positions as defined for NUMBER_OF_POSITIONS.
+//  The syntax must be correct for each line, and there must be no comma "," at the end
+//  of the last defined position.
+//  The syntax is:
+/*
+positionDefinition turntablePositions[NUMBER_OF_POSITIONS] = {
+  {angle, id, "description"},
+  {angle, id, "description"},
+  ...
+  {angle, id, "description"}
+};
+*/
+//  Where:
+//  angle - Specified in degrees from the top of the display (12 o'clock)
+//  id - The identifier that will be sent to the CommandStation when selected (1 - 255)
+//  "description" - A 10 character or less position description to display when selected
+/////////////////////////////////////////////////////////////////////////////////////
 
 positionDefinition turntablePositions[NUMBER_OF_POSITIONS] = {
   {5, 1, "Test 1"},

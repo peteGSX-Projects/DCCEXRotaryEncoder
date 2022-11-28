@@ -46,6 +46,12 @@ typedef struct {
 } positionDefinition;
 
 /*
+Ensure the two modes have a value to test.
+*/
+#define TURNTABLE 1
+#define KNOB 2
+
+/*
 If we haven't got a custom config.h, use the example.
 */
 #if __has_include ("config.h")
@@ -56,22 +62,23 @@ If we haven't got a custom config.h, use the example.
 #endif
 
 /*
-Generate comiler error if no display in use.
+Validate a correct mode has been defined.
 */
-#ifndef KNOB_MODE
-#ifndef TURNTABLE_MODE
-#error No display defined, specify either OLED or GC9A01
+#ifndef MODE
+#error No mode defined, define either TURNTABLE or KNOB in config.h
 #endif
+#if MODE == TURNTABLE
+// Valid mode, do nothing
+#elif MODE == KNOB
+// Valid mode, do nothing
+#else
+#error An invalid mode has been defined, define either TURNTABLE or KNOB in config.h
 #endif
 
 /*
-If GC9A01 defined, include the necessary library and files.
+If turntable mode defined, include the necessary library and files.
 */
-#ifdef TURNTABLE_MODE
-#ifdef KNOB_MODE
-// If we've defined both display options, we need to bail out compiling.
-#error TURNTABLE_MODE and KNOB_MODE defined, must only specify one display option
-#endif
+#if MODE == TURNTABLE
 // If we haven't got a custom positions.h, use the example.
 #if __has_include ("positions.h")
   #include "positions.h"
@@ -91,13 +98,9 @@ If GC9A01 defined, include the necessary library and files.
 #endif
 
 /*
-If OLED defined, include the required libraries.
+If knob mode defined, include the required libraries.
 */
-#ifdef KNOB_MODE
-#ifdef TURNTABLE_MODE
-// If we've defined both display options, we need to bail out compiling.
-#error TURNTABLE_MODE and KNOB_MODE defined, must only specify one display option
-#endif
+#if MODE == KNOB
 #include <SPI.h>
 #include "SSD1306Ascii.h"
 #include "SSD1306AsciiSpi.h"
@@ -127,7 +130,7 @@ Switch encoderButton(ROTARY_BTN, INPUT_PULLUP, POLARITY, DEBOUNCE, LONG_PRESS);
 /*
 Global variables, objects, and functions specifically for OLED.
 */
-#ifdef KNOB_MODE
+#if MODE == KNOB
 /*
 Instantiate the OLED object.
 */
@@ -175,7 +178,7 @@ void displayHomeReset() {
 /*
 Global variables, objects, and functions specifically for GC9A01.
 */
-#ifdef TURNTABLE_MODE
+#if MODE == TURNTABLE
 // Static global variables for display parameters
 static int16_t displayWidth, displayHeight, displayCentre, turntableLength, pitRadius;
 static float turntableDegrees, markDegrees;
@@ -347,7 +350,7 @@ void setup() {
   Serial.println(VERSION);
   Serial.print(F("Available at I2C address 0x"));
   Serial.println(I2C_ADDRESS, HEX);
-#ifdef KNOB_MODE
+#if MODE == KNOB
   oled.begin(&SH1106_128x64, OLED_CS, OLED_DC);
   oled.setFont(Callibri11);
   oled.clear();
@@ -360,7 +363,7 @@ void setup() {
   oled.clear();
   displaySelectedPosition(counter);
 #endif
-#ifdef TURNTABLE_MODE
+#if MODE == TURNTABLE
   gfx->begin();
   gfx->fillScreen(BACKGROUND_COLOUR);
   pinMode(GC9A01_BL, OUTPUT);
@@ -404,11 +407,11 @@ void loop() {
     // Disable reading position allow rotation to "home"
     encoderRead = false;
     Serial.println(F("Disabling position counts"));
-#ifdef KNOB_MODE
+#if MODE == KNOB
     displayHomeReset();
 #endif
   } else if (encoderButton.singleClick() && encoderRead) {
-#ifdef KNOB_MODE
+#if MODE == KNOB
     displaySelectedPosition(position);
 #endif
     position = counter;
@@ -420,15 +423,17 @@ void loop() {
     counter = 0;
     encoderRead = true;
     Serial.println(F("Enabling position counts"));
-#ifdef KNOB_MODE
+#if MODE == KNOB
     displaySelectedPosition(position);
 #endif
   }
   if (encoderRead) {
     unsigned char result = rotary.process();
+#if MODE == TURNTABLE
     bool moveTurntable = false;
+#endif
     if (result == DIR_CW) {
-#ifdef TURNTABLE_MODE
+#if MODE == TURNTABLE
       if (turntableAngle < 360) {
         turntableAngle++;
       } else {
@@ -441,7 +446,7 @@ void loop() {
       }
 #endif
     } else if (result == DIR_CCW) {
-#ifdef TURNTABLE_MODE
+#if MODE == TURNTABLE
       if (turntableAngle > 0) {
         turntableAngle--;
       } else {
@@ -457,7 +462,7 @@ void loop() {
 #ifdef DIAG
     Serial.println(counter);
 #endif
-#ifdef TURNTABLE_MODE
+#if MODE == TURNTABLE
     if (moveTurntable) {
       drawTurntable(turntableAngle);
     }
