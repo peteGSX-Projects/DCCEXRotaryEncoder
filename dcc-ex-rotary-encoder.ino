@@ -14,57 +14,125 @@
  *  See <https://www.gnu.org/licenses/>.
 */
 
+/*
+GC9A01 round 240x240 LCD display idea:
+
+Outer circle representing turntable surrounds with each position marked.
+Internal line representing turntable with home end marked.
+config.h or similar used to define the various positions using angles:
+- Home angle specified
+- Each position in degrees from home
+Rotating encoder rotates turntable, blue colour to indicate desire to move
+Push button sets orange flashing to indicate turntable is moving
+When response from CS received move has finished, stop flashing and set green
+When rotating encoder, alignment with a position highlights it somehow
+Need to devise a formula to use for rotating the turntable in line with the encoder
+Feedback from EX-CS should probably just be SET(vpin) so no extra commands are needed,
+just need to update IO_RotaryEncoder.h to accept and pass that on.
+*/
+
+/*
+Include Arduino platform library.
+*/
 #include <Arduino.h>
 
-// If we haven't got a custom config.h, use the example.
-#if __has_include ( "config.h")
+/*
+Create a struct to define turntable positions (defined in positions.h).
+*/
+typedef struct {
+  uint16_t angle;
+  uint8_t positionId;
+  char description[11];
+} positionDefinition;
+
+/*
+Ensure the two modes have a value to test.
+*/
+#define TURNTABLE 1
+#define KNOB 2
+
+/*
+If we haven't got a custom config.h, use the example.
+*/
+#if __has_include ("config.h")
   #include "config.h"
 #else
   #warning config.h not found. Using defaults from config.example.h
   #include "config.example.h"
 #endif
 
+/*
+Validate a correct mode has been defined.
+*/
+#ifndef MODE
+#error No mode defined, define either TURNTABLE or KNOB in config.h
+#endif
+#if MODE == TURNTABLE
+// Valid mode, do nothing
+#elif MODE == KNOB
+// Valid mode, do nothing
+#else
+#error An invalid mode has been defined, define either TURNTABLE or KNOB in config.h
+#endif
+
+/*
+If turntable mode defined, include the necessary library and files.
+*/
+#if MODE == TURNTABLE
+// If we haven't got a custom positions.h, use the example.
+#if __has_include ("positions.h")
+  #include "positions.h"
+#else
+  #warning positions.h not found. Using defaults from positions.example.h
+  #include "positions.example.h"
+#endif
+
+// If we haven't got a custom colours.h, use the example.
+#if __has_include ("colours.h")
+  #include "colours.h"
+#else
+  #warning colours.h not found. Using defaults from colours.example.h
+  #include "colours.example.h"
+#endif
+#include "Arduino_GFX_Library.h"
+#endif
+
+/*
+If knob mode defined, include the required libraries.
+*/
+#if MODE == KNOB
+#include <SPI.h>
+#include "SSD1306Ascii.h"
+#include "SSD1306AsciiSpi.h"
+#endif
+
+/*
+Include required libraries and files.
+*/
 #include "avdweb_Switch.h"
 #include "Rotary.h"
 #include "Wire.h"
 #include "version.h"
-#include <SPI.h>
-#include "SSD1306Ascii.h"
-#include "SSD1306AsciiSpi.h"
 
 /*
-Global variable to allow rotation of the encoder back to "home"
-without updating the position send to the CS.
+Global variables for the rotary encoder.
 */
-bool encoderRead = true;
+bool encoderRead = true;    // Allows encoder to be rotated without updating position
+int8_t counter = 0;         // Counter to be incremented/decremented by rotation
+int8_t position = 0;        // Position sent to the CommandStation
 
 /*
-Instantiate our rotary encoder object.
-Rotary encoder is wired with the common to ground and the two
-outputs as defined in config.h.
+Instantiate our rotary encoder and switch objects.
 */
 Rotary rotary = Rotary(ROTARY_DT, ROTARY_CLK);
-
-/*
-Instantiate our rotary encoder button.
-Rotary encoder button wired as defined in config.h.
-*/
 Switch encoderButton(ROTARY_BTN, INPUT_PULLUP, POLARITY, DEBOUNCE, LONG_PRESS);
 
 /*
-Global variable for the counter that will be incremented or
-decremented by rotation.
+Global variables, objects, and functions specifically for OLED.
 */
-int8_t counter = 0;
-
+#if MODE == KNOB
 /*
-Global variable that is set by the encoder button single push
-and is sent to the CS when requested.
-*/
-int8_t position = 0;
-
-/*
-Instantiate our OLED object.
+Instantiate the OLED object.
 */
 SSD1306AsciiSpi oled;
 
@@ -104,68 +172,302 @@ void displayHomeReset() {
   oled.println(F("Rotate encoder to home"));
   oled.println(F("Press button to confirm"));
 }
+// End of OLED functions
+#endif
+
+/*
+Global variables, objects, and functions specifically for GC9A01.
+*/
+#if MODE == TURNTABLE
+// Static global variables for display parameters
+static int16_t displayWidth, displayHeight, displayCentre, turntableLength, pitRadius;
+static float turntableDegrees, markDegrees;
+// Global variables to facilitate overwriting last position
+int16_t lastX0, lastY0, lastX1, lastY1, lastHX0, lastHY0, lastHX1, lastHY1;
+uint8_t textX, textY, numChars = 0;
+uint16_t turntableAngle = HOME_ANGLE;   // Start display with turntable at home
+char textChars[11];     // Stores the current position text
+
+// Instantiate DataBus and GFX objects.
+Arduino_DataBus *bus = new Arduino_HWSPI(GC9A01_DC, GC9A01_CS);
+Arduino_GFX *gfx = new Arduino_GC9A01(bus, GC9A01_RST, GC9A01_ROTATION, GC9A01_IPS);
+
+// Define radians for angle calculation
+#define ONE_DEGREE_RADIAN 0.01745329
+#define RIGHT_ANGLE_RADIAN 1.57079633
+
+/*
+Function to display the defined position marks around the pit circle.
+*/
+void drawPositionMarks() {
+  uint8_t homeMarkLength = 12;
+  uint8_t positionMarkLength = 10;
+  uint16_t markColour;
+  float x, y;
+  int16_t x0, x1, y0, y1, innerRadius, outerRadius;
+#ifndef HOME_ANGLE
+#define HOME_ANGLE 0
+#endif
+  for (uint16_t i = 0; i < 360; i++) {
+    bool drawLine = false;
+    if (i == HOME_ANGLE) {
+      markColour = HOME_COLOUR;
+      innerRadius = displayCentre - PIT_OFFSET + 1;
+      outerRadius = displayCentre + homeMarkLength - PIT_OFFSET + 1;
+      drawLine = true;
+    } else {
+      for (uint8_t j = 0; j < NUMBER_OF_POSITIONS; j++) {
+        if (i == turntablePositions[j].angle) {
+          markColour = POSITION_COLOUR;
+          innerRadius = displayCentre - PIT_OFFSET + 1;
+          outerRadius = displayCentre + positionMarkLength - PIT_OFFSET + 1;
+          drawLine = true;
+        }
+      }
+    }
+    markDegrees = (ONE_DEGREE_RADIAN * i) - RIGHT_ANGLE_RADIAN;
+    x = cos(markDegrees);
+    y = sin(markDegrees);
+    x0 = x * outerRadius + displayCentre;
+    y0 = y * outerRadius + displayCentre;
+    x1 = x * innerRadius + displayCentre;
+    y1 = y * innerRadius + displayCentre;
+    if (drawLine) {
+      gfx->drawLine(x0, y0, x1, y1, markColour);
+    }
+  }
+}
+
+/*
+Function to display the text for the specified position.
+If moving away from a defined position, set the "clear" flag to set to background colour.
+*/
+void drawPositionText(uint16_t angle, bool clear) {
+  uint16_t fontColour;
+  gfx->setTextSize(2);
+  gfx->setFont();
+  if (clear) {
+    fontColour = BACKGROUND_COLOUR;
+  } else {
+    fontColour = POSITION_TEXT_COLOUR;
+    numChars = 0;
+    for (uint8_t i = 0; i < NUMBER_OF_POSITIONS; i++) {
+      if (angle == turntablePositions[i].angle) {
+        for (uint8_t j = 0; j < 10; j++) {
+          textChars[j] = turntablePositions[i].description[j];
+          if (turntablePositions[i].description[j] != '\0') {
+            numChars++;
+          } else {
+            break;
+          }
+        }
+      } else if (angle == HOME_ANGLE) {
+        char home[5] = "Home";
+        for (uint8_t k = 0; k < 4; k++) {
+          textChars[k] = home[k];
+        }
+        textChars[4] = '\0';
+        numChars = 4;
+      }
+    }
+    textX = displayCentre - (numChars / 2 * 10) - 1;
+    textY = displayCentre;
+  }
+  gfx->setTextColor(fontColour);
+  gfx->setCursor(textX, textY);
+  gfx->print(textChars);
+}
+
+/*
+Function to draw the turntable at the specified angle.
+If the turntable aligns with home or a define position, it will highlight the home end and
+display the provided description of the position.
+*/
+void drawTurntable(uint16_t angle) {
+  float x, y;
+  int16_t x0, x1, y0, y1, homeEnd, otherEnd, indicatorInner, indicatorOuter, hx0, hy0, hx1, hy1;
+  uint16_t homeEndColour = TURNTABLE_HOME_COLOUR;
+  bool updateText = false;
+  for (uint8_t i = 0; i < NUMBER_OF_POSITIONS; i++) {
+    if (angle == turntablePositions[i].angle || angle == HOME_ANGLE) {
+      homeEndColour = HOME_HIGHLIGHT_COLOUR;
+      updateText = true;
+      if (angle == HOME_ANGLE) {
+        counter = 0;
+      } else {
+        counter = turntablePositions[i].positionId;
+      }
+    }
+  }
+  if (updateText) {
+    drawPositionText(angle, true);
+    drawPositionText(angle, false);
+  } else {
+    drawPositionText(angle, true);
+  }
+  turntableDegrees = (ONE_DEGREE_RADIAN * angle) - RIGHT_ANGLE_RADIAN;
+  homeEnd = (turntableLength / 2) - 10;
+  otherEnd = - (turntableLength / 2);
+  indicatorInner = homeEnd;
+  indicatorOuter = indicatorInner + 10;
+  x = cos(turntableDegrees);
+  y = sin(turntableDegrees);
+  x0 = x * homeEnd + displayCentre;
+  y0 = y * homeEnd + displayCentre;
+  x1 = x * otherEnd + displayCentre;
+  y1 = y * otherEnd + displayCentre;
+  hx0 = x * indicatorInner + displayCentre;
+  hy0 = y * indicatorInner + displayCentre;
+  hx1 = x * indicatorOuter + displayCentre;
+  hy1 = y * indicatorOuter + displayCentre;
+  gfx->drawLine(lastX0, lastY0, lastX1, lastY1, BACKGROUND_COLOUR);
+  gfx->drawLine(lastHX0, lastHY0, lastHX1, lastHY1, BACKGROUND_COLOUR);
+  gfx->drawLine(x0, y0, x1, y1, TURNTABLE_COLOUR);
+  gfx->drawLine(hx0, hy0, hx1, hy1, homeEndColour);
+  lastX0 = x0;
+  lastY0 = y0;
+  lastX1 = x1;
+  lastY1 = y1;
+  lastHX0 = hx0;
+  lastHY0 = hy0;
+  lastHX1 = hx1;
+  lastHY1 = hy1;
+}
+
+// End of GC9A01 functions
+#endif
+
+/*
+Function to send the current position over I2C when requested.
+*/
+void requestEvent() {
+  Wire.write(position);
+}
 
 void setup() {
   Serial.begin(115200);
-  oled.begin(&SH1106_128x64, CS_PIN, DC_PIN);
-  oled.setFont(Callibri11);
-  oled.clear();
   Serial.print(F("DCC-EX Rotary Encoder "));
   Serial.println(VERSION);
   Serial.print(F("Available at I2C address 0x"));
   Serial.println(I2C_ADDRESS, HEX);
+#if MODE == KNOB
+  oled.begin(&SH1106_128x64, OLED_CS, OLED_DC);
+  oled.setFont(Callibri11);
+  oled.clear();
   oled.println(F("DCC-EX Rotary Encoder"));
   oled.print(F("Version: "));
   oled.println(VERSION);
   oled.print(F("I2C Address: 0x"));
   oled.println(I2C_ADDRESS, HEX);
-  Wire.begin(I2C_ADDRESS);
-  Wire.onRequest(requestEvent);
   delay(2000);
   oled.clear();
   displaySelectedPosition(counter);
+#endif
+#if MODE == TURNTABLE
+  gfx->begin();
+  gfx->fillScreen(BACKGROUND_COLOUR);
+  pinMode(GC9A01_BL, OUTPUT);
+  digitalWrite(GC9A01_BL, HIGH);
+  displayWidth = gfx->width();
+  displayHeight = gfx->height();
+  if (displayWidth < displayHeight)
+  {
+    displayCentre = displayWidth / 2;
+  }
+  else
+  {
+    displayCentre = displayHeight / 2;
+  }
+  gfx->setTextSize(1);
+  gfx->setFont();
+  gfx->setTextColor(POSITION_TEXT_COLOUR);
+  gfx->setCursor(40, 60);
+  gfx->print(F("DCC-EX Rotary Encoder"));
+  gfx->setCursor(40, 80);
+  gfx->print(F("Version: "));
+  gfx->print(VERSION);
+  gfx->setCursor(40, 100);
+  gfx->print(F("I2C Address: 0x"));
+  gfx->print(I2C_ADDRESS, HEX);
+  delay(2000);
+  gfx->fillScreen(BACKGROUND_COLOUR);
+  pitRadius = displayCentre - PIT_OFFSET;
+  turntableLength = (pitRadius - 5) * 2;
+  gfx->drawCircle(displayCentre, displayCentre, pitRadius, PIT_COLOUR);
+  drawPositionMarks();
+  drawTurntable(turntableAngle);
+#endif
+  Wire.begin(I2C_ADDRESS);
+  Wire.onRequest(requestEvent);
 }
 
 void loop() {
   encoderButton.poll();
-
   if (encoderButton.longPress()) {
     // Disable reading position allow rotation to "home"
     encoderRead = false;
     Serial.println(F("Disabling position counts"));
+#if MODE == KNOB
     displayHomeReset();
+#endif
   } else if (encoderButton.singleClick() && encoderRead) {
+#if MODE == KNOB
+    displaySelectedPosition(position);
+#endif
     position = counter;
     Serial.print(F("Sending position "));
     Serial.print(position);
     Serial.println(F(" to CommandStation"));
-    displaySelectedPosition(position);
   } else if (encoderButton.singleClick() && !encoderRead) {
     // Once rotated to "home", zero counter and enable again
     counter = 0;
     encoderRead = true;
     Serial.println(F("Enabling position counts"));
+#if MODE == KNOB
     displaySelectedPosition(position);
+#endif
   }
-
   if (encoderRead) {
     unsigned char result = rotary.process();
+#if MODE == TURNTABLE
+    bool moveTurntable = false;
+#endif
     if (result == DIR_CW) {
+#if MODE == TURNTABLE
+      if (turntableAngle < 360) {
+        turntableAngle++;
+      } else {
+        turntableAngle = 0;
+      }
+      moveTurntable = true;
+#else
       if (counter < 127) {
         counter++;
       }
+#endif
     } else if (result == DIR_CCW) {
+#if MODE == TURNTABLE
+      if (turntableAngle > 0) {
+        turntableAngle--;
+      } else {
+        turntableAngle = 359;
+      }
+      moveTurntable = true;
+#else
       if (counter > -127) {
         counter--;
       }
+#endif
     }
 #ifdef DIAG
     Serial.println(counter);
 #endif
+#if MODE == TURNTABLE
+    if (moveTurntable) {
+      drawTurntable(turntableAngle);
+    }
+#else
     displayNewPosition(counter);
+#endif
   }
-}
-
-void requestEvent() {
-  Wire.write(position);
 }
