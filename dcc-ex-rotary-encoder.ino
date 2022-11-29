@@ -115,11 +115,13 @@ Include required libraries and files.
 #include "version.h"
 
 /*
-Global variables for the rotary encoder.
+Global variables for all modes.
 */
 bool encoderRead = true;    // Allows encoder to be rotated without updating position
 int8_t counter = 0;         // Counter to be incremented/decremented by rotation
 int8_t position = 0;        // Position sent to the CommandStation
+bool moveFeedback = 0;      // Boolean for move state comparison
+bool moveComplete = 0;      // Flag to receive feedback from the CommandStation
 
 /*
 Instantiate our rotary encoder and switch objects.
@@ -337,6 +339,24 @@ void drawTurntable(uint16_t angle) {
 // End of GC9A01 functions
 #endif
 
+/*=============================================================
+Function to receive a feedback flag from the EX-CommandStation
+when a turntable move (or something else) has completed.
+We should only receive a 0 or a 1, anything else discarded.
+=============================================================*/
+void receiveEvent(int receivedBytes) {
+  if (receivedBytes == 1) {
+    uint8_t receivedByte = Wire.read();
+    if (receivedByte == 0 || receivedByte == 1) {
+      moveFeedback = receivedByte;
+    }
+  } else {
+    while (Wire.available()) {
+      Wire.read();
+    }
+  }
+}
+
 /*
 Function to send the current position over I2C when requested.
 */
@@ -399,6 +419,7 @@ void setup() {
 #endif
   Wire.begin(I2C_ADDRESS);
   Wire.onRequest(requestEvent);
+  Wire.onReceive(receiveEvent);
 }
 
 void loop() {
