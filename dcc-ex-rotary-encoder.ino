@@ -15,23 +15,6 @@
 */
 
 /*
-GC9A01 round 240x240 LCD display idea:
-
-Outer circle representing turntable surrounds with each position marked.
-Internal line representing turntable with home end marked.
-config.h or similar used to define the various positions using angles:
-- Home angle specified
-- Each position in degrees from home
-Rotating encoder rotates turntable, blue colour to indicate desire to move
-Push button sets orange flashing to indicate turntable is moving
-When response from CS received move has finished, stop flashing and set green
-When rotating encoder, alignment with a position highlights it somehow
-Need to devise a formula to use for rotating the turntable in line with the encoder
-Feedback from EX-CS should probably just be SET(vpin) so no extra commands are needed,
-just need to update IO_RotaryEncoder.h to accept and pass that on.
-*/
-
-/*
 Include Arduino platform library.
 */
 #include <Arduino.h>
@@ -120,8 +103,8 @@ Global variables for all modes.
 bool encoderRead = true;    // Allows encoder to be rotated without updating position
 int8_t counter = 0;         // Counter to be incremented/decremented by rotation
 int8_t position = 0;        // Position sent to the CommandStation
-bool moveFeedback = 0;      // Boolean for move state comparison
-bool moveComplete = 0;      // Flag to receive feedback from the CommandStation
+bool moveFeedback = 1;      // Boolean for move state comparison, 0 = moving, 1 = complete
+bool moveComplete = 1;      // Flag to receive feedback from the CommandStation, 0 = moving, 1 = complete
 
 /*
 Instantiate our rotary encoder and switch objects.

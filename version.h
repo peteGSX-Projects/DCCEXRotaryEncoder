@@ -1,5 +1,7 @@
 #define VERSION "v0.0.2-Alpha"
 
+// 0.0.3-Alpha includes:
+//  - Add boolean feedback via second VPin (0 moving, 1 complete).
 // 0.0.2-Alpha includes:
 //  - Add support for GC9A01 round colour LCD display.
 //  - Includes displaying rotating turntable via rotary encoder.

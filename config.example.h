@@ -18,6 +18,7 @@
 #define MODE TURNTABLE    // Default TURNTABLE
 // #define MODE KNOB
 // #define DIAG           // Uncomment to enable continous output of encoder position
+#define FEEDBACK          // Comment out to disable feedback from CommandStation
 /////////////////////////////////////////////////////////////////////////////////////
 //  END: General configuration options.
 /////////////////////////////////////////////////////////////////////////////////////
