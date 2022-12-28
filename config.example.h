@@ -14,7 +14,7 @@
 /////////////////////////////////////////////////////////////////////////////////////
 //  START: General configuration options.
 /////////////////////////////////////////////////////////////////////////////////////
-#define I2C_ADDRESS 0x80  // Default 0x80, can be any valid, available I2C address
+#define I2C_ADDRESS 0x70  // Default 0x70, can be any valid, available I2C address
 #define MODE TURNTABLE    // Default TURNTABLE
 // #define MODE KNOB
 // #define DIAG           // Uncomment to enable continous output of encoder position
