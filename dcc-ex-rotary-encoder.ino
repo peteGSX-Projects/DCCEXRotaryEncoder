@@ -95,6 +95,13 @@ If knob mode defined, include the required libraries.
 #endif
 
 /*
+* If blink rate not set, set it
+*/
+#ifndef BLINK_RATE
+#define BLINK_RATE 500
+#endif
+
+/*
 Include required libraries and files.
 */
 #include "avdweb_Switch.h"
@@ -105,13 +112,15 @@ Include required libraries and files.
 /*
 Global variables for all modes.
 */
-bool encoderRead = true;    // Allows encoder to be rotated without updating position
-int8_t counter = 0;         // Counter to be incremented/decremented by rotation
-int8_t position = 0;        // Position sent to the CommandStation
-bool moving = 1;            // Boolean for moving or not, 1 = moving, 0 = not
-char * version;             // Char array to break version into ints
-uint8_t versionBuffer[3];   // Buffer to send version to device driver
-byte activity;              // Flag to choose what to send to device driver
+bool encoderRead = true;      // Allows encoder to be rotated without updating position
+int8_t counter = 0;           // Counter to be incremented/decremented by rotation
+int8_t position = 0;          // Position sent to the CommandStation
+bool moving = 0;              // Boolean for moving or not, 1 = moving, 0 = not
+char * version;               // Char array to break version into ints
+uint8_t versionBuffer[3];     // Buffer to send version to device driver
+byte activity;                // Flag to choose what to send to device driver
+unsigned long lastBlink = 0;  // Last time display was turned off/on
+bool blinkFlag = 0;           // Flag for alternating text clear/colour
 
 /*
 Instantiate our rotary encoder and switch objects.
@@ -314,7 +323,11 @@ void drawTurntable(uint16_t angle) {
   hy1 = y * indicatorOuter + displayCentre;
   gfx->drawLine(lastX0, lastY0, lastX1, lastY1, BACKGROUND_COLOUR);
   gfx->drawLine(lastHX0, lastHY0, lastHX1, lastHY1, BACKGROUND_COLOUR);
-  gfx->drawLine(x0, y0, x1, y1, TURNTABLE_COLOUR);
+  if (moving && blinkFlag == 0) {
+    gfx->drawLine(x0, y0, x1, y1, BACKGROUND_COLOUR);
+  } else {
+    gfx->drawLine(x0, y0, x1, y1, TURNTABLE_COLOUR);
+  }
   gfx->drawLine(hx0, hy0, hx1, hy1, homeEndColour);
   lastX0 = x0;
   lastY0 = y0;
@@ -360,16 +373,6 @@ void receiveEvent(int receivedBytes) {
     default:
       break;
   }
-  // if (receivedBytes == 1) {
-  //   uint8_t receivedByte = Wire.read();
-  //   if (receivedByte == 0 || receivedByte == 1) {
-  //     moveFeedback = receivedByte;
-  //   }
-  // } else {
-  //   while (Wire.available()) {
-  //     Wire.read();
-  //   }
-  // }
 }
 
 /*
@@ -377,8 +380,12 @@ Function to send the current position over I2C when requested.
 */
 void requestEvent() {
   if (activity == RE_VER) {
+    Serial.print(F("Send version: v"));
+    Serial.print(versionBuffer[0]);
+    Serial.print(versionBuffer[1]);
+    Serial.println(versionBuffer[2]);
     Wire.write(versionBuffer, 3);
-  } else if (activity = RE_OP) {
+  } else if (activity == RE_OP) {
     Wire.write(position);
   }
 }
@@ -431,7 +438,11 @@ void setup() {
   gfx->print(F("DCC-EX Rotary Encoder"));
   gfx->setCursor(40, 80);
   gfx->print(F("Version: "));
-  gfx->print(VERSION);
+  gfx->print(versionBuffer[0]);
+  gfx->print(F("."));
+  gfx->print(versionBuffer[1]);
+  gfx->print(F("."));
+  gfx->print(versionBuffer[2]);
   gfx->setCursor(40, 100);
   gfx->print(F("I2C Address: 0x"));
   gfx->print(I2C_ADDRESS, HEX);
@@ -450,71 +461,83 @@ void setup() {
 
 void loop() {
   encoderButton.poll();
-  if (encoderButton.longPress()) {
-    // Disable reading position allow rotation to "home"
-    encoderRead = false;
-    Serial.println(F("Disabling position counts"));
+  if (!moving) {
+    if (encoderButton.longPress()) {
+      // Disable reading position allow rotation to "home"
+      encoderRead = false;
+      Serial.println(F("Disabling position counts"));
 #if MODE == KNOB
-    displayHomeReset();
+      displayHomeReset();
 #endif
-  } else if (encoderButton.singleClick() && encoderRead) {
+    } else if (encoderButton.singleClick() && encoderRead) {
 #if MODE == KNOB
-    displaySelectedPosition(position);
+      displaySelectedPosition(position);
 #endif
-    position = counter;
-    Serial.print(F("Sending position "));
-    Serial.print(position);
-    Serial.println(F(" to CommandStation"));
-  } else if (encoderButton.singleClick() && !encoderRead) {
-    // Once rotated to "home", zero counter and enable again
-    counter = 0;
-    encoderRead = true;
-    Serial.println(F("Enabling position counts"));
+      position = counter;
+      Serial.print(F("Sending position "));
+      Serial.print(position);
+      Serial.println(F(" to CommandStation"));
+    } else if (encoderButton.singleClick() && !encoderRead) {
+      // Once rotated to "home", zero counter and enable again
+      counter = 0;
+      encoderRead = true;
+      Serial.println(F("Enabling position counts"));
 #if MODE == KNOB
-    displaySelectedPosition(position);
-#endif
-  }
-  if (encoderRead) {
-    unsigned char result = rotary.process();
-#if MODE == TURNTABLE
-    bool moveTurntable = false;
-#endif
-    if (result == DIR_CW) {
-#if MODE == TURNTABLE
-      if (turntableAngle < 360) {
-        turntableAngle++;
-      } else {
-        turntableAngle = 0;
-      }
-      moveTurntable = true;
-#else
-      if (counter < 127) {
-        counter++;
-      }
-#endif
-    } else if (result == DIR_CCW) {
-#if MODE == TURNTABLE
-      if (turntableAngle > 0) {
-        turntableAngle--;
-      } else {
-        turntableAngle = 359;
-      }
-      moveTurntable = true;
-#else
-      if (counter > -127) {
-        counter--;
-      }
+      displaySelectedPosition(position);
 #endif
     }
+    if (encoderRead) {
+      unsigned char result = rotary.process();
+#if MODE == TURNTABLE
+      bool moveTurntable = false;
+#endif
+      if (result == DIR_CW) {
+#if MODE == TURNTABLE
+        if (turntableAngle < 360) {
+          turntableAngle++;
+        } else {
+          turntableAngle = 0;
+        }
+        moveTurntable = true;
+#else
+        if (counter < 127) {
+          counter++;
+        }
+#endif
+      } else if (result == DIR_CCW) {
+#if MODE == TURNTABLE
+        if (turntableAngle > 0) {
+          turntableAngle--;
+        } else {
+          turntableAngle = 359;
+        }
+        moveTurntable = true;
+#else
+        if (counter > -127) {
+          counter--;
+        }
+#endif
+      }
 #ifdef DIAG
-    Serial.println(counter);
+      Serial.println(counter);
 #endif
 #if MODE == TURNTABLE
-    if (moveTurntable) {
-      drawTurntable(turntableAngle);
-    }
+      if (moveTurntable || blinkFlag == 0) {
+        drawTurntable(turntableAngle);
+        blinkFlag = 1;
+      }
 #else
-    displayNewPosition(counter);
+      displayNewPosition(counter);
 #endif
+    }
+  } else {
+    // Flash position text here
+    if (millis() - lastBlink >= BLINK_RATE) {
+      blinkFlag = !blinkFlag;
+#if MODE == TURNTABLE
+      drawTurntable(turntableAngle);
+#endif
+      lastBlink = millis();
+    }
   }
 }
