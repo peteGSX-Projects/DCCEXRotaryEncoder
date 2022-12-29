@@ -28,6 +28,11 @@ typedef struct {
   char description[11];
 } positionDefinition;
 
+enum {
+  RE_VER = 0xA0,    // Flag to send version to device driver
+  RE_OP = 0xA1,     // Flag for normal operation
+};
+
 /*
 Ensure the two modes have a value to test.
 */
@@ -103,8 +108,10 @@ Global variables for all modes.
 bool encoderRead = true;    // Allows encoder to be rotated without updating position
 int8_t counter = 0;         // Counter to be incremented/decremented by rotation
 int8_t position = 0;        // Position sent to the CommandStation
-bool moveFeedback = 1;      // Boolean for move state comparison, 0 = moving, 1 = complete
-bool moveComplete = 1;      // Flag to receive feedback from the CommandStation, 0 = moving, 1 = complete
+bool moving = 1;            // Boolean for moving or not, 1 = moving, 0 = not
+char * version;             // Char array to break version into ints
+uint8_t versionBuffer[3];   // Buffer to send version to device driver
+byte activity;              // Flag to choose what to send to device driver
 
 /*
 Instantiate our rotary encoder and switch objects.
@@ -328,23 +335,52 @@ when a turntable move (or something else) has completed.
 We should only receive a 0 or a 1, anything else discarded.
 =============================================================*/
 void receiveEvent(int receivedBytes) {
-  if (receivedBytes == 1) {
-    uint8_t receivedByte = Wire.read();
-    if (receivedByte == 0 || receivedByte == 1) {
-      moveFeedback = receivedByte;
-    }
-  } else {
-    while (Wire.available()) {
-      Wire.read();
-    }
+  if (receivedBytes == 0) {
+    return;
   }
+  byte buffer[receivedBytes];
+  for (uint8_t byte = 0; byte < receivedBytes; byte++) {
+    buffer[byte] = Wire.read();   // Read all received bytes into our buffer array
+  }
+  switch(buffer[0]) {
+    case RE_OP:
+      if (receivedBytes == 2) {
+        if (buffer[1] == 0 || buffer[1] == 1) {
+          moving = buffer[1];
+        }
+      } else if (receivedBytes == 1) {
+        activity = RE_OP;
+      }
+      break;
+    case RE_VER:
+      if (receivedBytes == 1) {
+        activity = RE_VER;
+      }
+      break;
+    default:
+      break;
+  }
+  // if (receivedBytes == 1) {
+  //   uint8_t receivedByte = Wire.read();
+  //   if (receivedByte == 0 || receivedByte == 1) {
+  //     moveFeedback = receivedByte;
+  //   }
+  // } else {
+  //   while (Wire.available()) {
+  //     Wire.read();
+  //   }
+  // }
 }
 
 /*
 Function to send the current position over I2C when requested.
 */
 void requestEvent() {
-  Wire.write(position);
+  if (activity == RE_VER) {
+    Wire.write(versionBuffer, 3);
+  } else if (activity = RE_OP) {
+    Wire.write(position);
+  }
 }
 
 void setup() {
@@ -353,6 +389,13 @@ void setup() {
   Serial.println(VERSION);
   Serial.print(F("Available at I2C address 0x"));
   Serial.println(I2C_ADDRESS, HEX);
+  // Put version into our array for the query later
+  version = strtok(VERSION, "."); // Split version on .
+  versionBuffer[0] = version[0] - '0';  // Major first
+  version = strtok(NULL, ".");
+  versionBuffer[1] = version[0] - '0';  // Minor next
+  version = strtok(NULL, ".");
+  versionBuffer[2] = version[0] - '0';  // Patch last
 #if MODE == KNOB
   oled.begin(&SH1106_128x64, OLED_CS, OLED_DC);
   oled.setFont(Callibri11);
