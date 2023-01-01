@@ -1,7 +1,10 @@
 // Version must be numeric only to be able to be sent to the device driver
-#define VERSION "0.0.3"
+#define VERSION "0.0.4"
 
-// 0.0.3-Alpha includes:
+// 0.0.4 includes:
+//  - Bug fix where position is updated in turntable controller mode
+//    regardless if it is aligned with a position or not.
+// 0.0.3 includes:
 //  - Add boolean feedback via second VPin (1 moving, 0 complete).
 //  - Add sending rotary encoder version to device driver.
 // 0.0.2-Alpha includes:

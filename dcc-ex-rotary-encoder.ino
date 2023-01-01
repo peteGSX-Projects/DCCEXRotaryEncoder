@@ -121,6 +121,7 @@ uint8_t versionBuffer[3];     // Buffer to send version to device driver
 byte activity;                // Flag to choose what to send to device driver
 unsigned long lastBlink = 0;  // Last time display was turned off/on
 bool blinkFlag = 0;           // Flag for alternating text clear/colour
+bool sendPosition = true;     // Flag for when positions are aligned in turntable mode
 
 /*
 Instantiate our rotary encoder and switch objects.
@@ -303,8 +304,10 @@ void drawTurntable(uint16_t angle) {
   if (updateText) {
     drawPositionText(angle, true);
     drawPositionText(angle, false);
+    sendPosition = true;
   } else {
     drawPositionText(angle, true);
+    sendPosition = false;
   }
   turntableDegrees = (ONE_DEGREE_RADIAN * angle) - RIGHT_ANGLE_RADIAN;
   homeEnd = (turntableLength / 2) - 10;
@@ -469,7 +472,7 @@ void loop() {
 #if MODE == KNOB
       displayHomeReset();
 #endif
-    } else if (encoderButton.singleClick() && encoderRead) {
+    } else if (encoderButton.singleClick() && encoderRead && sendPosition) {
 #if MODE == KNOB
       displaySelectedPosition(position);
 #endif
