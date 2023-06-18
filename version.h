@@ -1,6 +1,8 @@
 // Version must be numeric only to be able to be sent to the device driver
-#define VERSION "0.0.4"
+#define VERSION "0.0.5"
 
+// 0.0.5 includes:
+//  - Add ESP32 Dev Kit support
 // 0.0.4 includes:
 //  - Bug fix where position is updated in turntable controller mode
 //    regardless if it is aligned with a position or not.
