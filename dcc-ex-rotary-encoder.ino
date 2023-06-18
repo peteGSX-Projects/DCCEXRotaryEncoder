@@ -36,8 +36,8 @@ enum {
 /*
 Ensure the two modes have a value to test.
 */
-#define TURNTABLE 1
-#define KNOB 2
+#define TURNTABLE 0
+#define KNOB 1
 
 /*
 If we haven't got a custom config.h, use the example.
@@ -116,6 +116,7 @@ bool encoderRead = true;      // Allows encoder to be rotated without updating p
 int8_t counter = 0;           // Counter to be incremented/decremented by rotation
 int8_t position = 0;          // Position sent to the CommandStation
 bool moving = 0;              // Boolean for moving or not, 1 = moving, 0 = not
+const String versionString = VERSION;
 char * version;               // Char array to break version into ints
 uint8_t versionBuffer[3];     // Buffer to send version to device driver
 byte activity;                // Flag to choose what to send to device driver
@@ -191,7 +192,11 @@ uint16_t turntableAngle = HOME_ANGLE;   // Start display with turntable at home
 char textChars[11];     // Stores the current position text
 
 // Instantiate DataBus and GFX objects.
+#ifdef ARDUINO_ARCH_ESP32
+Arduino_DataBus *bus = new Arduino_ESP32SPI(GC9A01_DC, GC9A01_CS, GC9A01_CLK, GC9A01_DIN, GFX_NOT_DEFINED, VSPI);
+#else
 Arduino_DataBus *bus = new Arduino_HWSPI(GC9A01_DC, GC9A01_CS);
+#endif
 Arduino_GFX *gfx = new Arduino_GC9A01(bus, GC9A01_RST, GC9A01_ROTATION, GC9A01_IPS);
 
 // Define radians for angle calculation
@@ -399,8 +404,18 @@ void setup() {
   Serial.println(VERSION);
   Serial.print(F("Available at I2C address 0x"));
   Serial.println(I2C_ADDRESS, HEX);
+#if MODE == KNOB
+  Serial.println(F("Generic knob mode"));
+#elif MODE == TURNTABLE
+  Serial.println(F("Turntable control mode"));
+#else
+  Serial.println(F("Undefined mode"));
+#endif
   // Put version into our array for the query later
-  version = strtok(VERSION, "."); // Split version on .
+  char versionArray[versionString.length() + 1];
+  versionString.toCharArray(versionArray, versionString.length() + 1);
+  version = strtok(versionArray, "."); // Split version on .
+  // version = strtok(versionString, "."); // Split version on .
   versionBuffer[0] = version[0] - '0';  // Major first
   version = strtok(NULL, ".");
   versionBuffer[1] = version[0] - '0';  // Minor next
@@ -457,6 +472,7 @@ void setup() {
   drawPositionMarks();
   drawTurntable(turntableAngle);
 #endif
+  
   Wire.begin(I2C_ADDRESS);
   Wire.onRequest(requestEvent);
   Wire.onReceive(receiveEvent);

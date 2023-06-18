@@ -32,7 +32,9 @@
 #define LONG_PRESS 1000   // Adjust if necessary for long press detection
 #define ENABLE_PULLUPS    // Comment out if input does not require pull up
 #ifdef ARDUINO_ARCH_ESP32
-
+#define ROTARY_BTN 25      // Define encoder button pin
+#define ROTARY_DT 26       // Define encoder DT pin
+#define ROTARY_CLK 27      // Define encoder clock pin
 #else
 #define ROTARY_BTN 2      // Define encoder button pin
 #define ROTARY_DT 5       // Define encoder DT pin
@@ -63,7 +65,12 @@
 //  START: TURNTABLE mode configuration options.
 /////////////////////////////////////////////////////////////////////////////////////
 #ifdef ARDUINO_ARCH_ESP32
-
+#define GC9A01_DIN 23     // Define GC9A01 DIN pin
+#define GC9A01_CLK 18     // Define GC9A01 CLK/clock pin
+#define GC9A01_CS 5       // Define GC9A01 CS/chip select pin
+#define GC9A01_DC 27      // Define GC9A01 DC pin
+#define GC9A01_RST 4      // Define GC9A01 RST/reset pin
+#define GC9A01_BL 12      // Define GC9A01 BL/backlight pin
 #else
 #define GC9A01_DIN 11     // Define GC9A01 DIN pin
 #define GC9A01_CLK 13     // Define GC9A01 CLK/clock pin
