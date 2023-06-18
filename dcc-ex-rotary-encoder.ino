@@ -123,6 +123,11 @@ byte activity;                // Flag to choose what to send to device driver
 unsigned long lastBlink = 0;  // Last time display was turned off/on
 bool blinkFlag = 0;           // Flag for alternating text clear/colour
 bool sendPosition = true;     // Flag for when positions are aligned in turntable mode
+uint8_t i2cAddress = I2C_ADDRESS;
+#ifdef ARDUINO_ARCH_ESP32
+int sdaPin = I2C_SDA;
+int sclPin = I2C_SCL;
+#endif
 
 /*
 Instantiate our rotary encoder and switch objects.
@@ -472,8 +477,11 @@ void setup() {
   drawPositionMarks();
   drawTurntable(turntableAngle);
 #endif
-  
-  Wire.begin(I2C_ADDRESS);
+#ifdef ARDUINO_ARCH_ESP32
+  Wire.begin(i2cAddress, sdaPin, sclPin);
+#else
+  Wire.begin(i2cAddress);
+#endif
   Wire.onRequest(requestEvent);
   Wire.onReceive(receiveEvent);
 }
