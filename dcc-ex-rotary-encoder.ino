@@ -31,6 +31,7 @@ typedef struct {
 enum {
   RE_VER = 0xA0,    // Flag to send version to device driver
   RE_OP = 0xA1,     // Flag for normal operation
+  RE_MOVE = 0xA2,   // Flag device driver is sending a position to move to
 };
 
 /*
@@ -383,6 +384,11 @@ void receiveEvent(int receivedBytes) {
         activity = RE_VER;
       }
       break;
+    case RE_MOVE:
+      if (receivedBytes == 2) {
+        Serial.print(F("Received instruction to move to position "));
+        Serial.println(buffer[1]);
+      }
     default:
       break;
   }
