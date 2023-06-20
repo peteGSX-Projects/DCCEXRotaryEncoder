@@ -409,8 +409,19 @@ void receiveEvent(int receivedBytes) {
         receivedMove = true;
         Serial.print(F("Received move to "));
         Serial.println(newPosition);
-        position = newPosition;
-        counter = newPosition;
+        // Need to validate and process here:
+        // - If already at the position received, disregard
+        // - If not at that position then:
+        //    - Update display track to new position
+        //    - If moving flag is set, flash
+        //    - Respond as normal when moving flag unset
+        //    - Prevent a move received in this manner triggering a new move
+        if (position != newPosition) {
+          position = newPosition;
+          counter = newPosition;
+        } else {
+          Serial.println("Already there, we sent it, so disregard");
+        }
       }
     default:
       break;
