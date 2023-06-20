@@ -384,13 +384,6 @@ void receiveEvent(int receivedBytes) {
       if (receivedBytes == 1) {
         activity = RE_RDY;
       }
-      // if (receivedBytes == 2) {
-      //   if (buffer[1] == 0 || buffer[1] == 1) {
-      //     moving = buffer[1];
-      //   }
-      // } else if (receivedBytes == 1) {
-      //   activity = RE_OP;
-      // }
       break;
     case RE_VER:
       // Device driver asking for version
@@ -414,6 +407,10 @@ void receiveEvent(int receivedBytes) {
       if (receivedBytes == 2) {
         newPosition = buffer[1];
         receivedMove = true;
+        Serial.print(F("Received move to "));
+        Serial.println(newPosition);
+        position = newPosition;
+        counter = newPosition;
       }
     default:
       break;
@@ -447,11 +444,6 @@ void requestEvent() {
     // If anything else is requested, this is an error, send it
     Wire.write(RE_ERR);
   }
-  //else if (activity == RE_OP) {
-    // Device driver has requested if encoder is reaady, send it
-    // Wire.write(RE_OP);
-    // Wire.write(position);
-  // }
 }
 
 void setup() {
@@ -471,15 +463,11 @@ void setup() {
   char versionArray[versionString.length() + 1];
   versionString.toCharArray(versionArray, versionString.length() + 1);
   version = strtok(versionArray, "."); // Split version on .
-  // version = strtok(versionString, "."); // Split version on .
-  // versionBuffer[0] = version[0] - '0';  // Major first
   versionBuffer[0] = atoi(version);   // Major first
   version = strtok(NULL, ".");
   versionBuffer[1] = atoi(version);   // Minor next
-  // versionBuffer[1] = version[0] - '0';  // Minor next
   version = strtok(NULL, ".");
   versionBuffer[2] = atoi(version);   // Patch last
-  // versionBuffer[2] = version[0] - '0';  // Patch last
 #if MODE == KNOB
   oled.begin(&SH1106_128x64, OLED_CS, OLED_DC);
   oled.setFont(Callibri11);
@@ -532,7 +520,7 @@ void setup() {
   drawTurntable(turntableAngle);
 #endif
 #ifdef ARDUINO_ARCH_ESP32
-  Wire.begin(i2cAddress, sdaPin, sclPin);
+  Wire.begin(i2cAddress, sdaPin, sclPin, 400000);
 #else
   Wire.begin(i2cAddress);
 #endif
