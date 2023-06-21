@@ -404,21 +404,23 @@ void receiveEvent(int receivedBytes) {
       }
       break;
     case RE_MOVE:
+      // Device driver sending a position move
       if (receivedBytes == 2) {
         newPosition = buffer[1];
+#ifdef DIAG
         Serial.print(F("Received move to "));
-        // Need to validate and process here:
-        // - If already at the position received, disregard
-        // - If not at that position then:
-        //    - Update display track to new position
-        //    - If moving flag is set, flash
-        //    - Respond as normal when moving flag unset
-        //    - Prevent a move received in this manner triggering a new move
+#endif
+        // If it's not the current position, flag a change
         if (position != newPosition) {
+#ifdef DIAG
           Serial.println(newPosition);
+#endif
           receivedMove = true;
         } else {
+#ifdef DIAG
           Serial.println("existing position, disregarding");
+#endif
+          // If it's the same as current position, we don't care
           receivedMove = false;
         }
       }
@@ -548,7 +550,12 @@ void loop() {
 #if MODE == KNOB
       displayHomeReset();
 #endif
-    } else if (encoderButton.singleClick() && encoderRead && sendPosition) {
+    // If button has been pushed, reading is enabled, and aligned at a position, or if we received a move from the device driver:
+    } else if ((encoderButton.singleClick() && encoderRead && sendPosition) || receivedMove) {
+      // Update counter to the device driver position
+      if (receivedMove) {
+        counter = newPosition;
+      }
 #if MODE == KNOB
       displaySelectedPosition(position);
 #endif
