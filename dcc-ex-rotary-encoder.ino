@@ -406,9 +406,7 @@ void receiveEvent(int receivedBytes) {
     case RE_MOVE:
       if (receivedBytes == 2) {
         newPosition = buffer[1];
-        receivedMove = true;
         Serial.print(F("Received move to "));
-        Serial.println(newPosition);
         // Need to validate and process here:
         // - If already at the position received, disregard
         // - If not at that position then:
@@ -417,10 +415,11 @@ void receiveEvent(int receivedBytes) {
         //    - Respond as normal when moving flag unset
         //    - Prevent a move received in this manner triggering a new move
         if (position != newPosition) {
-          position = newPosition;
-          counter = newPosition;
+          Serial.println(newPosition);
+          receivedMove = true;
         } else {
-          Serial.println("Already there, we sent it, so disregard");
+          Serial.println("existing position, disregarding");
+          receivedMove = false;
         }
       }
     default:
