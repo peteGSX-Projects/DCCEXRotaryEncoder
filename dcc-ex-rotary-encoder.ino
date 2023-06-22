@@ -130,6 +130,7 @@ bool sendPosition = true;     // Flag for when positions are aligned in turntabl
 uint8_t i2cAddress = I2C_ADDRESS; // Store I2C address in the right type
 uint8_t newPosition;          // Variable to store new positions received by the device driver
 bool receivedMove = false;    // Boolean to flag if we received a move from the device driver
+bool moveTurntable = false;   // Flag the turntable display needs to move
 #ifdef ARDUINO_ARCH_ESP32
 int sdaPin = I2C_SDA;
 int sclPin = I2C_SCL;
@@ -555,6 +556,17 @@ void loop() {
       // Update counter to the device driver position
       if (receivedMove) {
         counter = newPosition;
+        receivedMove = false;
+        moveTurntable = true;
+        if (counter == 0) {
+          turntableAngle = 0;
+        } else {
+          for (uint8_t i = 0; i < NUMBER_OF_POSITIONS; i++) {
+            if (turntablePositions[i].positionId == counter) {
+              turntableAngle = turntablePositions[i].angle;
+            }
+          }
+        }
       }
 #if MODE == KNOB
       displaySelectedPosition(position);
@@ -575,7 +587,7 @@ void loop() {
     if (encoderRead) {
       unsigned char result = rotary.process();
 #if MODE == TURNTABLE
-      bool moveTurntable = false;
+      moveTurntable = false;
 #endif
       if (result == DIR_CW) {
 #if MODE == TURNTABLE
