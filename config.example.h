@@ -19,8 +19,10 @@
 // #define MODE KNOB
 // #define DIAG           // Uncomment to enable continous output of encoder position
 #define BLINK_RATE 500    // Delay in ms to blink text when moving
+#if defined(ARDUINO_ARCH_ESP32)
 #define I2C_SDA 21        // SDA pin - required for ESP32 only
 #define I2C_SCL 22        // SCL pin - required for ESP32 only
+#endif
 /////////////////////////////////////////////////////////////////////////////////////
 //  END: General configuration options.
 /////////////////////////////////////////////////////////////////////////////////////
@@ -33,10 +35,14 @@
 #define DEBOUNCE 50       // Adjust if necessary to prevent false button presses
 #define LONG_PRESS 1000   // Adjust if necessary for long press detection
 #define ENABLE_PULLUPS    // Comment out if input does not require pull up
-#ifdef ARDUINO_ARCH_ESP32
+#if defined(ARDUINO_ARCH_ESP32)
 #define ROTARY_BTN 33      // Define encoder button pin
 #define ROTARY_DT 25       // Define encoder DT pin
 #define ROTARY_CLK 26      // Define encoder clock pin
+#elif defined(ARDUINO_BLACKPILL_F411CE)
+#define ROTARY_BTN PB15      // Define encoder button pin
+#define ROTARY_DT PB14       // Define encoder DT pin
+#define ROTARY_CLK PB13      // Define encoder clock pin
 #else
 #define ROTARY_BTN 2      // Define encoder button pin
 #define ROTARY_DT 5       // Define encoder DT pin
@@ -75,13 +81,20 @@
 //  RST Brown
 //  BL  Grey
 /////////////////////////////////////////////////////////////////////////////////////
-#ifdef ARDUINO_ARCH_ESP32
+#if defined(ARDUINO_ARCH_ESP32)
 #define GC9A01_DIN 23     // Define GC9A01 DIN pin
 #define GC9A01_CLK 18     // Define GC9A01 CLK/clock pin
 #define GC9A01_CS 5       // Define GC9A01 CS/chip select pin
 #define GC9A01_DC 27      // Define GC9A01 DC pin
 #define GC9A01_RST 4      // Define GC9A01 RST/reset pin
 #define GC9A01_BL 15      // Define GC9A01 BL/backlight pin
+#elif defined(ARDUINO_BLACKPILL_F411CE)
+#define GC9A01_DIN PA7     // Define GC9A01 DIN pin
+#define GC9A01_CLK PA5     // Define GC9A01 CLK/clock pin
+#define GC9A01_CS PA4       // Define GC9A01 CS/chip select pin
+#define GC9A01_DC PA3      // Define GC9A01 DC pin
+#define GC9A01_RST PA2      // Define GC9A01 RST/reset pin
+#define GC9A01_BL PA1      // Define GC9A01 BL/backlight pin
 #else
 #define GC9A01_DIN 11     // Define GC9A01 DIN pin
 #define GC9A01_CLK 13     // Define GC9A01 CLK/clock pin
