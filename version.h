@@ -3,6 +3,7 @@
 
 // 0.0.6 includes:
 //  - Added support for receiving a position update from EXRAIL routes
+//  - Added support for Blackpill STM32F411CE
 // 0.0.5 includes:
 //  - Add ESP32 Dev Kit support
 // 0.0.4 includes:

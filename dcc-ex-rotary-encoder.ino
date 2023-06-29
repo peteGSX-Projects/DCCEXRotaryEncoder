@@ -525,13 +525,6 @@ void setup() {
   gfx->print(F("I2C Address: 0x"));
   gfx->print(I2C_ADDRESS, HEX);
   delay(2000);
-  gfx->fillScreen(BACKGROUND_COLOUR);
-  pitRadius = displayCentre - PIT_OFFSET;
-  turntableLength = (pitRadius - 5) * 2;
-  gfx->drawCircle(displayCentre, displayCentre, pitRadius, PIT_COLOUR);
-  drawPositionMarks();
-  drawTurntable(turntableAngle);
-#endif
 #ifdef ARDUINO_ARCH_ESP32
   Wire.begin(i2cAddress, sdaPin, sclPin, 400000);
 #else
@@ -539,6 +532,13 @@ void setup() {
 #endif
   Wire.onRequest(requestEvent);
   Wire.onReceive(receiveEvent);
+  gfx->fillScreen(BACKGROUND_COLOUR);
+  pitRadius = displayCentre - PIT_OFFSET;
+  turntableLength = (pitRadius - 5) * 2;
+  gfx->drawCircle(displayCentre, displayCentre, pitRadius, PIT_COLOUR);
+  drawPositionMarks();
+  drawTurntable(turntableAngle);
+#endif
 }
 
 void loop() {
