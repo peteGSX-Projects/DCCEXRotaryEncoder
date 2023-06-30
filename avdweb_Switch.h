@@ -46,8 +46,11 @@ public:
 
   unsigned long deglitchTime, switchedTime, pushedTime, releasedTime, ms;
   const byte pin;
-  const int deglitchPeriod, debouncePeriod, longPressPeriod, doubleClickPeriod;
+  // Reorder to define polarity before others due to compiler reorder warning
   const bool polarity;
+  // Change from int to unsigned int for compiler warning
+  const unsigned int deglitchPeriod, debouncePeriod, longPressPeriod, doubleClickPeriod;
+  // const int deglitchPeriod, debouncePeriod, longPressPeriod, doubleClickPeriod;
   bool input, lastInput, equal, deglitched, debounced, _switched, _longPress, longPressDisable, _doubleClick, _singleClick, singleClickDisable;
 
   // Event callbacks

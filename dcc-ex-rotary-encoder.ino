@@ -29,8 +29,12 @@ typedef struct {
 } positionDefinition;
 
 enum {
-  RE_VER = 0xA0,    // Flag to send version to device driver
-  RE_OP = 0xA1,     // Flag for normal operation
+  RE_RDY = 0xA0,    // Flag to device driver that encoder is ready
+  RE_VER = 0xA1,    // Flag to send version to device driver
+  RE_READ = 0xA2,   // Flag the device driver is requesting the current position
+  RE_OP = 0xA3,     // Flag for operationg start/end, received for feedback on move start/end
+  RE_MOVE = 0xA4,   // Flag device driver is sending a position to move to
+  RE_ERR = 0xAF,    // Flag device driver has asked for something unknown
 };
 
 /*
@@ -123,7 +127,10 @@ byte activity;                // Flag to choose what to send to device driver
 unsigned long lastBlink = 0;  // Last time display was turned off/on
 bool blinkFlag = 0;           // Flag for alternating text clear/colour
 bool sendPosition = true;     // Flag for when positions are aligned in turntable mode
-uint8_t i2cAddress = I2C_ADDRESS;
+uint8_t i2cAddress = I2C_ADDRESS; // Store I2C address in the right type
+uint8_t newPosition;          // Variable to store new positions received by the device driver
+bool receivedMove = false;    // Boolean to flag if we received a move from the device driver
+bool moveTurntable = false;   // Flag the turntable display needs to move
 #ifdef ARDUINO_ARCH_ESP32
 int sdaPin = I2C_SDA;
 int sclPin = I2C_SCL;
@@ -356,9 +363,13 @@ void drawTurntable(uint16_t angle) {
 #endif
 
 /*=============================================================
-Function to receive a feedback flag from the EX-CommandStation
-when a turntable move (or something else) has completed.
-We should only receive a 0 or a 1, anything else discarded.
+Function to receive events from the device driver.
+
+RE_RDY - device driver is seeing if the encoder is ready
+RE_VER - device driver is requesting the version of the software
+RE_READ - device driver is requesting the current position of the encoder
+RE_OP - device driver is sending feedback (0 or 1)
+RE_MOVE - device driver is sending a new position the encoder didn't initiate
 =============================================================*/
 void receiveEvent(int receivedBytes) {
   if (receivedBytes == 0) {
@@ -369,37 +380,82 @@ void receiveEvent(int receivedBytes) {
     buffer[byte] = Wire.read();   // Read all received bytes into our buffer array
   }
   switch(buffer[0]) {
-    case RE_OP:
-      if (receivedBytes == 2) {
-        if (buffer[1] == 0 || buffer[1] == 1) {
-          moving = buffer[1];
-        }
-      } else if (receivedBytes == 1) {
-        activity = RE_OP;
+    case RE_RDY:
+      // Device driver asking if encoder is ready
+      if (receivedBytes == 1) {
+        activity = RE_RDY;
       }
       break;
     case RE_VER:
+      // Device driver asking for version
       if (receivedBytes == 1) {
         activity = RE_VER;
       }
       break;
+    case RE_READ:
+      // Device driver asking for current position
+      if (receivedBytes == 1) {
+        activity = RE_READ;
+      }
+      break;
+    case RE_OP:
+      // Device driver providing the feedback value (0 or 1)
+      if (receivedBytes == 2) {
+        moving = buffer[1];
+      }
+      break;
+    case RE_MOVE:
+      // Device driver sending a position move
+      if (receivedBytes == 2) {
+        newPosition = buffer[1];
+#ifdef DIAG
+        Serial.print(F("Received move to "));
+#endif
+        // If it's not the current position, flag a change
+        if (position != newPosition) {
+#ifdef DIAG
+          Serial.println(newPosition);
+#endif
+          receivedMove = true;
+        } else {
+#ifdef DIAG
+          Serial.println("existing position, disregarding");
+#endif
+          // If it's the same as current position, we don't care
+          receivedMove = false;
+        }
+      }
     default:
       break;
   }
 }
 
-/*
-Function to send the current position over I2C when requested.
-*/
+/*=============================================================
+Function to send data back to the device driver when requested.
+
+Any I2CManager.read() functions will expect responses which are performed here.
+=============================================================*/
 void requestEvent() {
-  if (activity == RE_VER) {
+  if (activity == RE_RDY) {
+    // Device driver requested if encoder is ready, send it
+    Wire.write(RE_RDY);
+  } else if (activity == RE_VER) {
+    // Device driver has requested version, sending it
+#ifdef DIAG
     Serial.print(F("Send version: v"));
     Serial.print(versionBuffer[0]);
+    Serial.print(F("."));
     Serial.print(versionBuffer[1]);
+    Serial.print(F("."));
     Serial.println(versionBuffer[2]);
+#endif
     Wire.write(versionBuffer, 3);
-  } else if (activity == RE_OP) {
+  } else if (activity == RE_READ) {
+    // Device driver requesting current position, send it
     Wire.write(position);
+  } else {
+    // If anything else is requested, this is an error, send it
+    Wire.write(RE_ERR);
   }
 }
 
@@ -420,12 +476,11 @@ void setup() {
   char versionArray[versionString.length() + 1];
   versionString.toCharArray(versionArray, versionString.length() + 1);
   version = strtok(versionArray, "."); // Split version on .
-  // version = strtok(versionString, "."); // Split version on .
-  versionBuffer[0] = version[0] - '0';  // Major first
+  versionBuffer[0] = atoi(version);   // Major first
   version = strtok(NULL, ".");
-  versionBuffer[1] = version[0] - '0';  // Minor next
+  versionBuffer[1] = atoi(version);   // Minor next
   version = strtok(NULL, ".");
-  versionBuffer[2] = version[0] - '0';  // Patch last
+  versionBuffer[2] = atoi(version);   // Patch last
 #if MODE == KNOB
   oled.begin(&SH1106_128x64, OLED_CS, OLED_DC);
   oled.setFont(Callibri11);
@@ -470,6 +525,13 @@ void setup() {
   gfx->print(F("I2C Address: 0x"));
   gfx->print(I2C_ADDRESS, HEX);
   delay(2000);
+#ifdef ARDUINO_ARCH_ESP32
+  Wire.begin(i2cAddress, sdaPin, sclPin, 400000);
+#else
+  Wire.begin(i2cAddress);
+#endif
+  Wire.onRequest(requestEvent);
+  Wire.onReceive(receiveEvent);
   gfx->fillScreen(BACKGROUND_COLOUR);
   pitRadius = displayCentre - PIT_OFFSET;
   turntableLength = (pitRadius - 5) * 2;
@@ -477,13 +539,6 @@ void setup() {
   drawPositionMarks();
   drawTurntable(turntableAngle);
 #endif
-#ifdef ARDUINO_ARCH_ESP32
-  Wire.begin(i2cAddress, sdaPin, sclPin);
-#else
-  Wire.begin(i2cAddress);
-#endif
-  Wire.onRequest(requestEvent);
-  Wire.onReceive(receiveEvent);
 }
 
 void loop() {
@@ -496,7 +551,23 @@ void loop() {
 #if MODE == KNOB
       displayHomeReset();
 #endif
-    } else if (encoderButton.singleClick() && encoderRead && sendPosition) {
+    // If button has been pushed, reading is enabled, and aligned at a position, or if we received a move from the device driver:
+    } else if ((encoderButton.singleClick() && encoderRead && sendPosition) || receivedMove) {
+      // Update counter to the device driver position
+      if (receivedMove) {
+        counter = newPosition;
+        receivedMove = false;
+        moveTurntable = true;
+        if (counter == 0) {
+          turntableAngle = 0;
+        } else {
+          for (uint8_t i = 0; i < NUMBER_OF_POSITIONS; i++) {
+            if (turntablePositions[i].positionId == counter) {
+              turntableAngle = turntablePositions[i].angle;
+            }
+          }
+        }
+      }
 #if MODE == KNOB
       displaySelectedPosition(position);
 #endif
@@ -516,7 +587,7 @@ void loop() {
     if (encoderRead) {
       unsigned char result = rotary.process();
 #if MODE == TURNTABLE
-      bool moveTurntable = false;
+      moveTurntable = false;
 #endif
       if (result == DIR_CW) {
 #if MODE == TURNTABLE
