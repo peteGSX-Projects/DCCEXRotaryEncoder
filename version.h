@@ -1,6 +1,8 @@
 // Version must be numeric only to be able to be sent to the device driver
-#define VERSION "0.0.6"
+#define VERSION "0.0.7"
 
+// 0.0.7 includes:
+//  - Added support for Bluepill STM32F103C8
 // 0.0.6 includes:
 //  - Added support for receiving a position update from EXRAIL routes
 //  - Added support for Blackpill STM32F411CE

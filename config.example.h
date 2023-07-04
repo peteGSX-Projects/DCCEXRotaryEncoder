@@ -39,7 +39,7 @@
 #define ROTARY_BTN 33      // Define encoder button pin
 #define ROTARY_DT 25       // Define encoder DT pin
 #define ROTARY_CLK 26      // Define encoder clock pin
-#elif defined(ARDUINO_BLACKPILL_F411CE)
+#elif defined(ARDUINO_BLACKPILL_F411CE) || defined(ARDUINO_BLUEPILL_F103C8)
 #define ROTARY_BTN PB15      // Define encoder button pin
 #define ROTARY_DT PB14       // Define encoder DT pin
 #define ROTARY_CLK PB13      // Define encoder clock pin
@@ -88,7 +88,7 @@
 #define GC9A01_DC 27      // Define GC9A01 DC pin
 #define GC9A01_RST 4      // Define GC9A01 RST/reset pin
 #define GC9A01_BL 15      // Define GC9A01 BL/backlight pin
-#elif defined(ARDUINO_BLACKPILL_F411CE)
+#elif defined(ARDUINO_BLACKPILL_F411CE) || defined(ARDUINO_BLUEPILL_F103C8)
 #define GC9A01_DIN PA7     // Define GC9A01 DIN pin
 #define GC9A01_CLK PA5     // Define GC9A01 CLK/clock pin
 #define GC9A01_CS PA4       // Define GC9A01 CS/chip select pin
