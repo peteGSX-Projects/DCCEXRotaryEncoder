@@ -18,24 +18,7 @@
 Include Arduino platform library.
 */
 #include <Arduino.h>
-
-/*
-Create a struct to define turntable positions (defined in positions.h).
-*/
-typedef struct {
-  uint16_t angle;
-  uint8_t positionId;
-  char description[11];
-} positionDefinition;
-
-enum {
-  RE_RDY = 0xA0,    // Flag to device driver that encoder is ready
-  RE_VER = 0xA1,    // Flag to send version to device driver
-  RE_READ = 0xA2,   // Flag the device driver is requesting the current position
-  RE_OP = 0xA3,     // Flag for operationg start/end, received for feedback on move start/end
-  RE_MOVE = 0xA4,   // Flag device driver is sending a position to move to
-  RE_ERR = 0xAF,    // Flag device driver has asked for something unknown
-};
+#include "Defines.h"
 
 /*
 Ensure the two modes have a value to test.
