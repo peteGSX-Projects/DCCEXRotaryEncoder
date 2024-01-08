@@ -37,4 +37,42 @@ enum {
   RE_ERR = 0xAF,    // Flag device driver has asked for something unknown
 };
 
+/*
+If we haven't got a custom config.h, use the example.
+*/
+#if __has_include ("config.h")
+  #include "config.h"
+#else
+  #warning config.h not found. Using defaults from config.example.h
+  #include "config.example.h"
+#endif
+
+// If we haven't got a custom positions.h, use the example.
+#if __has_include ("positions.h")
+  #include "positions.h"
+#else
+  #warning positions.h not found. Using defaults from positions.example.h
+  #include "positions.example.h"
+#endif
+
+// If we haven't got a custom colours.h, use the example.
+#if __has_include ("colours.h")
+  #include "colours.h"
+#else
+  #warning colours.h not found. Using defaults from colours.example.h
+  #include "colours.example.h"
+#endif
+#include "Arduino_GFX_Library.h"
+
+/*
+* If blink rate not set, set it
+*/
+#ifndef BLINK_RATE
+#define BLINK_RATE 500
+#endif
+
+// Define radians for angle calculation
+#define ONE_DEGREE_RADIAN 0.01745329
+#define RIGHT_ANGLE_RADIAN 1.57079633
+
 #endif

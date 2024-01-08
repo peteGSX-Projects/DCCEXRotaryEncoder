@@ -1,5 +1,5 @@
 /*
- *  © 2022 Peter Cole
+ *  © 2024 Peter Cole
  *
  *  This is the example colour configuration file for the DCC-EX integrated rotary encoder.
  * 

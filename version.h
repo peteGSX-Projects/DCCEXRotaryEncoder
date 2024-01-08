@@ -1,6 +1,9 @@
 // Version must be numeric only to be able to be sent to the device driver
-#define VERSION "0.0.7"
+#define VERSION "0.0.8"
 
+// 0.0.8 includes:
+//  - Remove generic control knob mode
+//  - Remove support for all devices except Blackpill STM32F411CE
 // 0.0.7 includes:
 //  - Added support for Bluepill STM32F103C8
 // 0.0.6 includes:

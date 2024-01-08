@@ -21,80 +21,12 @@ Include Arduino platform library.
 #include "Defines.h"
 
 /*
-Ensure the two modes have a value to test.
-*/
-#define TURNTABLE 0
-#define KNOB 1
-
-/*
-If we haven't got a custom config.h, use the example.
-*/
-#if __has_include ("config.h")
-  #include "config.h"
-#else
-  #warning config.h not found. Using defaults from config.example.h
-  #include "config.example.h"
-#endif
-
-/*
-Validate a correct mode has been defined.
-*/
-#ifndef MODE
-#error No mode defined, define either TURNTABLE or KNOB in config.h
-#endif
-#if MODE == TURNTABLE
-// Valid mode, do nothing
-#elif MODE == KNOB
-// Valid mode, do nothing
-#else
-#error An invalid mode has been defined, define either TURNTABLE or KNOB in config.h
-#endif
-
-/*
-If turntable mode defined, include the necessary library and files.
-*/
-#if MODE == TURNTABLE
-// If we haven't got a custom positions.h, use the example.
-#if __has_include ("positions.h")
-  #include "positions.h"
-#else
-  #warning positions.h not found. Using defaults from positions.example.h
-  #include "positions.example.h"
-#endif
-
-// If we haven't got a custom colours.h, use the example.
-#if __has_include ("colours.h")
-  #include "colours.h"
-#else
-  #warning colours.h not found. Using defaults from colours.example.h
-  #include "colours.example.h"
-#endif
-#include "Arduino_GFX_Library.h"
-#endif
-
-/*
-If knob mode defined, include the required libraries.
-*/
-#if MODE == KNOB
-#include <SPI.h>
-#include "SSD1306Ascii.h"
-#include "SSD1306AsciiSpi.h"
-#endif
-
-/*
-* If blink rate not set, set it
-*/
-#ifndef BLINK_RATE
-#define BLINK_RATE 500
-#endif
-
-/*
 Include required libraries and files.
 */
 #include "avdweb_Switch.h"
 #include "Rotary.h"
 #include "Wire.h"
-#include "version.h"
+#include "Version.h"
 
 /*
 Global variables for all modes.
@@ -114,10 +46,6 @@ uint8_t i2cAddress = I2C_ADDRESS; // Store I2C address in the right type
 uint8_t newPosition;          // Variable to store new positions received by the device driver
 bool receivedMove = false;    // Boolean to flag if we received a move from the device driver
 bool moveTurntable = false;   // Flag the turntable display needs to move
-#ifdef ARDUINO_ARCH_ESP32
-int sdaPin = I2C_SDA;
-int sclPin = I2C_SCL;
-#endif
 
 /*
 Instantiate our rotary encoder and switch objects.
@@ -126,57 +54,8 @@ Rotary rotary = Rotary(ROTARY_DT, ROTARY_CLK);
 Switch encoderButton(ROTARY_BTN, INPUT_PULLUP, POLARITY, DEBOUNCE, LONG_PRESS);
 
 /*
-Global variables, objects, and functions specifically for OLED.
-*/
-#if MODE == KNOB
-/*
-Instantiate the OLED object.
-*/
-SSD1306AsciiSpi oled;
-
-/*
-Function to display the currently selected position of the encoder.
-Set this by a button press, or 0 on startup.
-*/
-void displaySelectedPosition(int8_t position) {
-  oled.setCursor(0, 0);
-  oled.set2X();
-  oled.print(F("Current: "));
-  oled.print(position);
-  oled.clearToEOL();
-}
-
-/*
-Function to display the position the encoder is moved to.
-This should be updated by any encoder movement.
-*/
-void displayNewPosition(int8_t position) {
-  oled.setCursor(0, 3);
-  oled.set2X();
-  oled.print(F("Move to: "));
-  oled.print(position);
-  oled.clearToEOL();
-}
-
-/*
-Function to display the home reset process.
-This should be set by a long press.
-*/
-void displayHomeReset() {
-  oled.clear();
-  oled.set1X();
-  oled.setCursor(0,0);
-  oled.println(F("Resetting home position"));
-  oled.println(F("Rotate encoder to home"));
-  oled.println(F("Press button to confirm"));
-}
-// End of OLED functions
-#endif
-
-/*
 Global variables, objects, and functions specifically for GC9A01.
 */
-#if MODE == TURNTABLE
 // Static global variables for display parameters
 static int16_t displayWidth, displayHeight, displayCentre, turntableLength, pitRadius;
 static float turntableDegrees, markDegrees;
@@ -187,16 +66,8 @@ uint16_t turntableAngle = HOME_ANGLE;   // Start display with turntable at home
 char textChars[11];     // Stores the current position text
 
 // Instantiate DataBus and GFX objects.
-#ifdef ARDUINO_ARCH_ESP32
-Arduino_DataBus *bus = new Arduino_ESP32SPI(GC9A01_DC, GC9A01_CS, GC9A01_CLK, GC9A01_DIN, GFX_NOT_DEFINED, VSPI);
-#else
 Arduino_DataBus *bus = new Arduino_HWSPI(GC9A01_DC, GC9A01_CS);
-#endif
 Arduino_GFX *gfx = new Arduino_GC9A01(bus, GC9A01_RST, GC9A01_ROTATION, GC9A01_IPS);
-
-// Define radians for angle calculation
-#define ONE_DEGREE_RADIAN 0.01745329
-#define RIGHT_ANGLE_RADIAN 1.57079633
 
 /*
 Function to display the defined position marks around the pit circle.
@@ -342,9 +213,6 @@ void drawTurntable(uint16_t angle) {
   lastHY1 = hy1;
 }
 
-// End of GC9A01 functions
-#endif
-
 /*=============================================================
 Function to receive events from the device driver.
 
@@ -442,32 +310,12 @@ void requestEvent() {
   }
 }
 
-#if defined(ARDUINO_BLUEPILL_F103C8)
-void disableJTAG() {
-  // Disable JTAG and enable SWD by clearing the SWJ_CFG bits
-  // Assuming the register is named AFIO_MAPR or AFIO_MAPR2
-  AFIO->MAPR &= ~(AFIO_MAPR_SWJ_CFG);
-  // or
-  // AFIO->MAPR2 &= ~(AFIO_MAPR2_SWJ_CFG);
-}
-#endif
-
 void setup() {
-#if  defined(ARDUINO_BLUEPILL_F103C8)
-  disableJTAG();
-#endif
   Serial.begin(115200);
   Serial.print(F("DCC-EX Rotary Encoder "));
   Serial.println(VERSION);
   Serial.print(F("Available at I2C address 0x"));
   Serial.println(I2C_ADDRESS, HEX);
-#if MODE == KNOB
-  Serial.println(F("Generic knob mode"));
-#elif MODE == TURNTABLE
-  Serial.println(F("Turntable control mode"));
-#else
-  Serial.println(F("Undefined mode"));
-#endif
   // Put version into our array for the query later
   char versionArray[versionString.length() + 1];
   versionString.toCharArray(versionArray, versionString.length() + 1);
@@ -477,20 +325,6 @@ void setup() {
   versionBuffer[1] = atoi(version);   // Minor next
   version = strtok(NULL, ".");
   versionBuffer[2] = atoi(version);   // Patch last
-#if MODE == KNOB
-  oled.begin(&SH1106_128x64, OLED_CS, OLED_DC);
-  oled.setFont(Callibri11);
-  oled.clear();
-  oled.println(F("DCC-EX Rotary Encoder"));
-  oled.print(F("Version: "));
-  oled.println(VERSION);
-  oled.print(F("I2C Address: 0x"));
-  oled.println(I2C_ADDRESS, HEX);
-  delay(2000);
-  oled.clear();
-  displaySelectedPosition(counter);
-#endif
-#if MODE == TURNTABLE
   gfx->begin();
   gfx->fillScreen(BACKGROUND_COLOUR);
   pinMode(GC9A01_BL, OUTPUT);
@@ -521,11 +355,7 @@ void setup() {
   gfx->print(F("I2C Address: 0x"));
   gfx->print(I2C_ADDRESS, HEX);
   delay(2000);
-#ifdef ARDUINO_ARCH_ESP32
-  Wire.begin(i2cAddress, sdaPin, sclPin, 400000);
-#else
   Wire.begin(i2cAddress);
-#endif
   Wire.onRequest(requestEvent);
   Wire.onReceive(receiveEvent);
   gfx->fillScreen(BACKGROUND_COLOUR);
@@ -534,7 +364,6 @@ void setup() {
   gfx->drawCircle(displayCentre, displayCentre, pitRadius, PIT_COLOUR);
   drawPositionMarks();
   drawTurntable(turntableAngle);
-#endif
 }
 
 void loop() {
@@ -544,9 +373,6 @@ void loop() {
       // Disable reading position allow rotation to "home"
       encoderRead = false;
       Serial.println(F("Disabling position counts"));
-#if MODE == KNOB
-      displayHomeReset();
-#endif
     // If button has been pushed, reading is enabled, and aligned at a position, or if we received a move from the device driver:
     } else if ((encoderButton.singleClick() && encoderRead && sendPosition) || receivedMove) {
       // Update counter to the device driver position
@@ -564,9 +390,6 @@ void loop() {
           }
         }
       }
-#if MODE == KNOB
-      displaySelectedPosition(position);
-#endif
       position = counter;
       Serial.print(F("Sending position "));
       Serial.print(position);
@@ -576,61 +399,38 @@ void loop() {
       counter = 0;
       encoderRead = true;
       Serial.println(F("Enabling position counts"));
-#if MODE == KNOB
-      displaySelectedPosition(position);
-#endif
     }
     if (encoderRead) {
       unsigned char result = rotary.process();
-#if MODE == TURNTABLE
       moveTurntable = false;
-#endif
       if (result == DIR_CW) {
-#if MODE == TURNTABLE
         if (turntableAngle < 360) {
           turntableAngle++;
         } else {
           turntableAngle = 0;
         }
         moveTurntable = true;
-#else
-        if (counter < 127) {
-          counter++;
-        }
-#endif
       } else if (result == DIR_CCW) {
-#if MODE == TURNTABLE
         if (turntableAngle > 0) {
           turntableAngle--;
         } else {
           turntableAngle = 359;
         }
         moveTurntable = true;
-#else
-        if (counter > -127) {
-          counter--;
-        }
-#endif
       }
 #ifdef DIAG
       Serial.println(counter);
 #endif
-#if MODE == TURNTABLE
       if (moveTurntable || blinkFlag == 0) {
         drawTurntable(turntableAngle);
         blinkFlag = 1;
       }
-#else
-      displayNewPosition(counter);
-#endif
     }
   } else {
     // Flash position text here
     if (millis() - lastBlink >= BLINK_RATE) {
       blinkFlag = !blinkFlag;
-#if MODE == TURNTABLE
       drawTurntable(turntableAngle);
-#endif
       lastBlink = millis();
     }
   }
